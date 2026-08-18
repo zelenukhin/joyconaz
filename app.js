@@ -673,6 +673,56 @@ const applyPatternStrength = (patternName) => {
 // Имя текущего выбранного рисунка (с защитой, как в rumbleSidePattern).
 const currentPatternName = () => patternSelect?.value ?? 'pulse';
 
+// ── Сохранение последнего выбранного рисунка вибрации ─────────────────
+//
+// Сам выбор рисунка тоже запоминается в localStorage: при следующем
+// открытии страницы последний использованный рисунок подставляется
+// автоматически. Записывается при любом способе выбора — селектором
+// в интерфейсе и кнопками «−» / «+» на Joy-Con (switchPattern).
+// Восстановление валидируется по списку селектора: если сохранённое
+// имя по какой-то причине в списке отсутствует (например, рисунок
+// удалён в новой версии), остаётся значение по умолчанию из HTML.
+//
+// ВАЖНО ПОРЯДКОМ ЗАПУСКА: восстановление рисунка выполняется ДО
+// applyPatternStrength при загрузке страницы — тогда подставится сила
+// именно восстановленного рисунка, а не стартового из HTML.
+//
+// Программная установка patternSelect.value события change не порождает,
+// поэтому восстановление ничего не «до-сохраняет» обратно.
+const PATTERN_STORAGE_KEY = 'joyconaz.pattern';
+
+const loadPatternSelection = () => {
+  try {
+    const raw = localStorage.getItem(PATTERN_STORAGE_KEY);
+    return typeof raw === 'string' ? raw : null;
+  } catch (error) {
+    console.warn('Не удалось прочитать сохранённый рисунок вибрации:', error);
+    return null;
+  }
+};
+
+const savePatternSelection = (patternName) => {
+  try {
+    localStorage.setItem(PATTERN_STORAGE_KEY, patternName);
+  } catch (error) {
+    console.warn('Не удалось сохранить рисунок вибрации:', error);
+  }
+};
+
+// Восстанавливает сохранённый рисунок, если он есть в списке селектора.
+const restorePatternSelection = () => {
+  if (!patternSelect) {
+    return;
+  }
+  const saved = loadPatternSelection();
+  if (
+    saved &&
+    [...patternSelect.options].some((option) => option.value === saved)
+  ) {
+    patternSelect.value = saved;
+  }
+};
+
 speedSlider.addEventListener('input', updateSpeedValue);
 
 // Изменение силы ползунком: обновляем индикатор и запоминаем силу
@@ -684,20 +734,24 @@ rumbleSlider.addEventListener('input', () => {
   rememberPatternStrength(currentPatternName(), rumbleSlider.value);
 });
 
-// Ручной выбор рисунка в селекторе: подставляем сохранённую для него
-// силу или сбрасываем на 50%. Программная установка patternSelect.value
-// (switchPattern) событие change не порождает — двойной работы нет.
+// Ручной выбор рисунка в селекторе: запоминаем выбор и подставляем
+// сохранённую для него силу или сбрасываем на 50%. Программная установка
+// patternSelect.value (switchPattern, restorePatternSelection) событие
+// change не порождает — двойной работы нет.
 patternSelect?.addEventListener('change', () => {
+  savePatternSelection(currentPatternName());
   applyPatternStrength(currentPatternName());
 });
 
 updateSpeedValue();
 updateRumbleValue();
-// При загрузке страницы подставляем силу, сохранённую для стартового
-// рисунка (если её не настраивали — остаётся 50% из HTML).
+// При загрузке страницы сначала восстанавливаем последний выбранный
+// рисунок, затем подставляем силу, сохранённую именно для него
+// (если её не настраивали — остаётся 50% из HTML).
+restorePatternSelection();
 applyPatternStrength(currentPatternName());
 
-// ── Звук щелчка пальцев у края ────────────────────────────────────────
+// ── Звук щелчка пальцев ──────────────────────────────────────────────
 //
 // Дополнение к вибрации: в момент касания шариком края можно включить
 // короткий (300 мс) звук щелчка пальцев из подпапки sound/.
@@ -1232,7 +1286,8 @@ const PATTERN_VALUES = [...(patternSelect?.options ?? [])].map(
 // Переключает рисунок вибрации по кругу: delta = +1 — следующий рисунок,
 // delta = −1 — предыдущий; после последнего рисунка идёт первый,
 // перед первым — последний (циклический обход без «тупиков» на краях).
-// Сразу подставляем силу, сохранённую для нового рисунка (или 50%).
+// Сразу запоминаем выбор и подставляем силу, сохранённую для нового
+// рисунка (или 50%).
 const switchPattern = (delta) => {
   if (PATTERN_VALUES.length === 0) {
     return;
@@ -1248,6 +1303,7 @@ const switchPattern = (delta) => {
   const next =
     (current + delta + PATTERN_VALUES.length) % PATTERN_VALUES.length;
   patternSelect.value = PATTERN_VALUES[next];
+  savePatternSelection(PATTERN_VALUES[next]);
   applyPatternStrength(PATTERN_VALUES[next]);
 };
 
