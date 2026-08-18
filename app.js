@@ -13,6 +13,8 @@ const rumbleSlider = document.querySelector('#rumble-strength');
 const rumbleValue = document.querySelector('#rumble-strength-value');
 const patternSelect = document.querySelector('#pattern');
 const testPatternButton = document.querySelector('#test-pattern');
+const soundEnabledToggle = document.querySelector('#sound-enabled');
+const soundFileSelect = document.querySelector('#sound-file');
 const statusLeft = document.querySelector('#status-left');
 const statusRight = document.querySelector('#status-right');
 const ball = document.querySelector('#ball');
@@ -464,10 +466,6 @@ const rumbleSidePattern = async (side) => {
     isSide(joyCon, side)
   );
 
-  if (joyCons.length === 0) {
-    return;
-  }
-
   buzzStatus(side === 'left' ? statusLeft : statusRight);
 
   try {
@@ -706,6 +704,163 @@ updateRumbleValue();
 // рисунка (если её не настраивали — остаётся 50% из HTML).
 applyPatternStrength(currentPatternName());
 
+// ── Звук щелчка пальцев у края ────────────────────────────────────────
+//
+// Дополнение к вибрации: в момент касания шариком края можно включить
+// короткий (300 мс) звук щелчка пальцев из подпапки sound/.
+// Звук включается/выключается флажком, конкретный файл выбирается
+// в выпадающем списке. Оба состояния хранятся в localStorage браузера
+// и восстанавливаются при следующем открытии страницы.
+//
+// Аудио-элементы создаются заранее с preload='auto' — к первому
+// касанию края файл уже запрошен по сети и готов к мгновенному
+// воспроизведению. Один элемент на файл: быстрое повторное касание
+// просто перезапускает звук с начала.
+const SOUND_STORAGE_KEY = 'joyconaz.sound';
+const SOUND_FILES = [
+  'chasqueo-100233.mp3',
+  'finger-snap-101756.mp3',
+  'finger-snap-43482.mp3',
+];
+const DEFAULT_SOUND_FILE = SOUND_FILES[0];
+
+const soundElements = new Map(
+  SOUND_FILES.map((file) => {
+    const audio = new Audio(`sound/${file}`);
+    audio.preload = 'auto';
+    return [file, audio];
+  })
+);
+
+// Читает сохранённые настройки звука {enabled, file}. Как и для силы
+// вибрации, любая ошибка localStorage безопасно откатывается к пустому
+// объекту (звук выключен, первый файл в списке).
+const loadSoundSettings = () => {
+  try {
+    const raw = localStorage.getItem(SOUND_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (error) {
+    console.warn('Не удалось прочитать настройки звука:', error);
+    return {};
+  }
+};
+
+const saveSoundSettings = () => {
+  try {
+    localStorage.setItem(
+      SOUND_STORAGE_KEY,
+      JSON.stringify({
+        enabled: Boolean(soundEnabledToggle?.checked),
+        file: soundFileSelect?.value ?? DEFAULT_SOUND_FILE,
+      })
+    );
+  } catch (error) {
+    console.warn('Не удалось сохранить настройки звука:', error);
+  }
+};
+
+// Восстановление сохранённого состояния при загрузке страницы.
+// Установка .checked и .value программно не порождает событий change,
+// поэтому восстановление ничего лишнего не перезаписывает.
+const restoreSoundSettings = () => {
+  const saved = loadSoundSettings();
+  if (soundEnabledToggle) {
+    soundEnabledToggle.checked = saved.enabled === true;
+  }
+  if (soundFileSelect) {
+    soundFileSelect.value = SOUND_FILES.includes(saved.file)
+      ? saved.file
+      : DEFAULT_SOUND_FILE;
+  }
+};
+
+restoreSoundSettings();
+
+soundEnabledToggle?.addEventListener('change', saveSoundSettings);
+soundFileSelect?.addEventListener('change', saveSoundSettings);
+
+// Проигрывает выбранный звук щелчка — в момент касания шариком края.
+// Если флажок выключен, ничего не делает. Звук перезапускается с начала
+// (currentTime = 0), чтобы быстрые повторные касания звучали как
+// отдельные щелчки. Отказ play() (ограничения автовоспроизведения
+// браузера, см. unlockAudioPlayback ниже) тихо игнорируется —
+// вибрация Joy-Con продолжает работать.
+const playEdgeSound = () => {
+  if (!soundEnabledToggle?.checked) {
+    return;
+  }
+  const file = soundFileSelect?.value ?? DEFAULT_SOUND_FILE;
+  const audio =
+    soundElements.get(file) ?? soundElements.get(DEFAULT_SOUND_FILE);
+  if (!audio) {
+    return;
+  }
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // Файл ещё не догрузился — играем с той позиции, что есть.
+  }
+  const playback = audio.play();
+  if (playback) {
+    playback.catch(() => {});
+  }
+};
+
+// Разблокировка автовоспроизведения: Chromium разрешает звук в
+// audio.play() только после «пользовательской активности» — клика
+// мышью или нажатия клавиши. События WebHID (кнопки Joy-Con) такой
+// активностью НЕ считаются. Поэтому при первом же клике или нажатии
+// клавиши «прогреваем» все аудио-элементы беззвучным воспроизведением
+// (volume 0 → play → pause); после этого playEdgeSound() сможет
+// звучать в любой момент, включая управление только с Joy-Con.
+const unlockAudioPlayback = () => {
+  for (const audio of soundElements.values()) {
+    if (!audio.paused) {
+      continue;
+    }
+    const restoreVolume = () => {
+      audio.volume = 1;
+    };
+    audio.volume = 0;
+    const playback = audio.play();
+    if (playback) {
+      playback
+        .then(() => {
+          audio.pause();
+          try {
+            audio.currentTime = 0;
+          } catch {
+            // Позиция сбросится при следующем rewind в playEdgeSound().
+          }
+          restoreVolume();
+        })
+        .catch(restoreVolume);
+    } else {
+      restoreVolume();
+    }
+  }
+};
+
+document.addEventListener(
+  'pointerdown',
+  () => {
+    unlockAudioPlayback();
+  },
+  { once: true }
+);
+
+document.addEventListener(
+  'keydown',
+  () => {
+    unlockAudioPlayback();
+  },
+  { once: true }
+);
+
 // Небольшая визуальная вспышка индикатора соответствующего Joy-Con.
 const buzzStatus = (element) => {
   element.animate(
@@ -770,15 +925,19 @@ const tick = (time) => {
   position += direction * fractionPerSecond * dt;
 
   if (position >= 1) {
-    // Крайнее правое положение — рисунок вибрации на правом Joy-Con.
+    // Крайнее правое положение: рисунок вибрации на правом Joy-Con
+    // и, если звук включён, щелчок пальцев.
     position = 1;
     direction = -1;
     void rumbleSidePattern('right');
+    playEdgeSound();
   } else if (position <= 0) {
-    // Крайнее левое положение — рисунок вибрации на левом Joy-Con.
+    // Крайнее левое положение: рисунок вибрации на левом Joy-Con
+    // и, если звук включён, щелчок пальцев.
     position = 0;
     direction = 1;
     void rumbleSidePattern('left');
+    playEdgeSound();
   }
 
   updateBall();

@@ -40,8 +40,8 @@ header p {
   color: #9aa4ae;
 }
 
-/* Блок с дорожкой и шариком теперь идёт СРАЗУ ПОСЛЕ заголовка,
-   до панели управления. flex: 1 по-прежнему растягивает блок на всё
+/* Блок с дорожкой и шариком идёт СРАЗУ ПОСЛЕ заголовка,
+   до панели управления. flex: 1 растягивает блок на всё
    свободное вертикальное пространство, поэтому панель управления
    и подвал прижимаются к низу страницы, а дорожка центрируется
    в оставшемся пространстве между заголовком и панелью. */
@@ -51,8 +51,6 @@ main {
   align-items: center;
   justify-content: center;
   width: 100%;
-  /* Верхний отступ после заголовка; нижний отступ не нужен —
-     расстояние до панели управления задаёт margin-top у #controls. */
   padding: 1.5rem 0 0;
 }
 
@@ -151,6 +149,50 @@ input[type='range'] {
   accent-color: #7fc1ff;
 }
 
+/* ── Ряд настроек звука щелчка у края ──────────────────────────────────
+   Флекс-строка: подпись фиксированной ширины (190px — как первая
+   колонка .slider-row, чтобы подписи всех рядов выравнивались),
+   затем флажок включения и выпадающий список выбора файла. */
+.sound-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.sound-row > label[for='sound-file'] {
+  color: #b7c0c9;
+  flex: 0 0 190px;
+}
+
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #dfe4e9;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.sound-toggle input[type='checkbox'] {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: #7fc1ff;
+  cursor: pointer;
+}
+
+.sound-row select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background-color: #232b34;
+  color: #e8eaed;
+}
+
 #status {
   display: flex;
   justify-content: space-around;
@@ -200,6 +242,14 @@ input[type='range'] {
   color: #dfe4e9;
 }
 
+.help code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+
 footer {
   padding: 1rem;
   font-size: 0.8rem;
@@ -229,5 +279,13 @@ footer a {
 
   .slider-row output {
     grid-area: output;
+  }
+
+  .sound-row {
+    flex-wrap: wrap;
+  }
+
+  .sound-row > label[for='sound-file'] {
+    flex-basis: 100%;
   }
 }
