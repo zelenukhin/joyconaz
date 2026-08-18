@@ -1,0 +1,233 @@
+:root {
+  color-scheme: dark;
+  --left-color: #00b2dc;
+  --right-color: #ff493e;
+  --panel-bg: #171d24;
+  --panel-border: #2a3138;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: system-ui, sans-serif;
+  background-color: #101418;
+  color: #e8eaed;
+}
+
+header {
+  text-align: center;
+  padding: 1rem 1rem 0;
+}
+
+header h1 {
+  margin: 0.25rem 0;
+}
+
+header p {
+  margin: 0.25rem 0 0;
+  color: #9aa4ae;
+}
+
+/* Блок с дорожкой и шариком теперь идёт СРАЗУ ПОСЛЕ заголовка,
+   до панели управления. flex: 1 по-прежнему растягивает блок на всё
+   свободное вертикальное пространство, поэтому панель управления
+   и подвал прижимаются к низу страницы, а дорожка центрируется
+   в оставшемся пространстве между заголовком и панелью. */
+main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  /* Верхний отступ после заголовка; нижний отступ не нужен —
+     расстояние до панели управления задаёт margin-top у #controls. */
+  padding: 1.5rem 0 0;
+}
+
+#track {
+  position: relative;
+  width: min(960px, 92vw);
+  height: 84px;
+  border-radius: 42px;
+  border: 2px solid var(--panel-border);
+  background-color: var(--panel-bg);
+}
+
+#track::before,
+#track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 44px;
+  border-radius: 3px;
+}
+
+#track::before {
+  left: 10px;
+  background-color: var(--left-color);
+}
+
+#track::after {
+  right: 10px;
+  background-color: var(--right-color);
+}
+
+#ball {
+  position: absolute;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: radial-gradient(circle at 35% 30%, #ffffff, #7fc1ff 55%, #3a79b8);
+  box-shadow: 0 0 26px rgba(127, 193, 255, 0.55);
+}
+
+#controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: min(680px, 92vw);
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background-color: var(--panel-bg);
+}
+
+.buttons-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 1.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background-color: #232b34;
+  color: #e8eaed;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #2b3540;
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 190px 1fr 80px;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.slider-row label {
+  color: #b7c0c9;
+}
+
+.slider-row output {
+  font-variant-numeric: tabular-nums;
+  color: #dfe4e9;
+  text-align: right;
+}
+
+input[type='range'] {
+  width: 100%;
+  accent-color: #7fc1ff;
+}
+
+#status {
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+  padding-top: 0.35rem;
+}
+
+.status-side {
+  font-size: 0.95rem;
+  opacity: 0.55;
+  transform-origin: center;
+}
+
+.status-side.connected {
+  opacity: 1;
+}
+
+.status-side.left.connected {
+  color: var(--left-color);
+}
+
+.status-side.right.connected {
+  color: var(--right-color);
+}
+
+.help {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 0.75rem;
+  font-size: 0.92rem;
+  color: #b7c0c9;
+}
+
+.help p {
+  margin: 0;
+}
+
+.help ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.help li {
+  margin: 0.15rem 0;
+}
+
+.help strong {
+  color: #dfe4e9;
+}
+
+footer {
+  padding: 1rem;
+  font-size: 0.8rem;
+  color: #9aa4ae;
+  text-align: center;
+}
+
+footer a {
+  color: var(--right-color);
+}
+
+@media (max-width: 560px) {
+  .slider-row {
+    grid-template-columns: 1fr 70px;
+    grid-template-areas:
+      'label label'
+      'slider output';
+  }
+
+  .slider-row label {
+    grid-area: label;
+  }
+
+  .slider-row input {
+    grid-area: slider;
+  }
+
+  .slider-row output {
+    grid-area: output;
+  }
+}

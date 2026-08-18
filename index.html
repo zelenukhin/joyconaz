@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EMDR-терапия с Joy-Con (WebHID)</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="app.js" type="module"></script>
+</head>
+<body>
+  <header>
+    <h1>EMDR-терапия</h1>
+    <p>
+      Следите за шариком взглядом. Когда шарик достигает края экрана,
+      вибрирует соответствующий Joy-Con (левый или правый).
+    </p>
+  </header>
+
+  <main>
+    <div id="track">
+      <div id="ball"></div>
+    </div>
+  </main>
+
+  <section id="controls">
+    <div class="buttons-row">
+      <button id="connect-joy-cons" type="button">Подключить Joy-Cons</button>
+      <button id="start-stop" type="button">Старт</button>
+      <button id="test-pattern" type="button">Проверить вибрацию</button>
+    </div>
+
+    <div class="slider-row">
+      <label for="speed">Скорость движения</label>
+      <input
+        id="speed"
+        type="range"
+        min="0.1"
+        max="2"
+        step="0.05"
+        value="1"
+      />
+      <output id="speed-value" for="speed">1.00</output>
+    </div>
+
+    <div class="slider-row">
+      <label for="rumble-strength">Сила вибрации</label>
+      <input
+        id="rumble-strength"
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value="0.5"
+      />
+      <output id="rumble-strength-value" for="rumble-strength">50%</output>
+    </div>
+
+    <div class="slider-row">
+      <label for="pattern">Рисунок вибрации</label>
+      <select id="pattern">
+        <optgroup label="Простые">
+          <option value="pulse" selected>
+            Импульс — прежний вариант (220 мс)
+          </option>
+          <option value="tap">Касание — короткий одиночный</option>
+          <option value="staccato">Стаккато — резкий щелчок</option>
+        </optgroup>
+        <optgroup label="Ритмические">
+          <option value="doubleTap">Двойное касание</option>
+          <option value="tripleTap">Тройное касание</option>
+          <option value="heartbeat">Пульс («сердцебиение»)</option>
+          <option value="heartbeatStrong">Сильное сердцебиение</option>
+          <option value="metronome">Метроном (равномерные тики)</option>
+          <option value="morse">«Точка-точка-тире»</option>
+          <option value="tickTock">
+            Тик-так — два удара разной высоты тона
+          </option>
+          <option value="gallop">Галоп — сдвоенный ритмичный шаг</option>
+          <option value="waltz">Вальс — ритм 3/4 с акцентом на первом</option>
+          <option value="samba">Самба — латиноамериканский ритм</option>
+          <option value="march">Марш — чёткий военный ритм</option>
+        </optgroup>
+        <optgroup label="Динамические">
+          <option value="softWave">Мягкая волна (нарастание и спад)</option>
+          <option value="crescendo">
+            Нарастание — усиление до пика и резкий обрыв
+          </option>
+          <option value="cascade">
+            Каскад — нисходящий «водопад» по высоте тона и силе
+          </option>
+          <option value="echo">Эхо — удар с затухающими откликами</option>
+          <option value="zigzag">
+            Зигзаг — чередование сильных и тихих ударов
+          </option>
+          <option value="oceanWave">
+            Прибой — самая мягкая и длинная волна с двумя гребнями
+          </option>
+          <option value="bounce">Отскок — затухающие прыжки мячика</option>
+          <option value="tremolo">Тремоло — частое дрожание</option>
+          <option value="earthquake">Землетрясение — низкий гулкий рокот</option>
+          <option value="pulseTrain">Поезд — серия импульсов с нарастанием и спадом</option>
+          <option value="swell">Всплеск — плавное нарастание и спад</option>
+          <option value="buzz">Жужжание — быстрые короткие импульсы</option>
+          <option value="siren">Сирена — чередование низкой и высокой частоты</option>
+          <option value="firework">Фейерверк — взрыв с затухающими искрами</option>
+          <option value="raindrops">Капли дождя — нерегулярные касания</option>
+          <option value="thunder">Гром — низкочастотный рокот с ударом</option>
+          <option value="windGust">Порыв ветра — нарастание и затухание</option>
+          <option value="butterfly">Бабочка — нежные лёгкие касания</option>
+          <option value="drumRoll">Барабанная дробь — нарастание ударов</option>
+          <option value="sonar">Сонар — пинг с затухающим эхом</option>
+          <option value="shiver">Дрожь — быстрые мелкие импульсы</option>
+          <option value="purring">Мурлыканье — мягкая модуляция</option>
+        </optgroup>
+        <optgroup label="Тактильные клики (стиль Apple Watch)">
+          <option value="click">Щелчок — одиночный чёткий клик</option>
+          <option value="softClick">Мягкий щелчок — деликатный</option>
+          <option value="crispTick">Звонкий тик — короткий высокий</option>
+          <option value="notification">Уведомление — два тика, как сообщение</option>
+          <option value="success">Успех — уверенный одиночный «тук»</option>
+          <option value="alert">Тройной сигнал — три тика</option>
+          <option value="pop">Пузырёк — лёгкий высокий клик</option>
+          <option value="doubleTick">Двойное постукивание — два мягких тика</option>
+          <option value="doubleClick">Двойной клик — два быстрых щелчка подряд</option>
+          <option value="warning">Предупреждение — два глухих удара пониже тоном</option>
+          <option value="error">Ошибка — три резких низких импульса</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div id="status">
+      <span id="status-left" class="status-side left"
+        >Левый: не подключён</span
+      >
+      <span id="status-right" class="status-side right"
+        >Правый: не подключён</span
+      >
+    </div>
+
+    <div class="help">
+      <p><strong>Управление с Joy-Con:</strong></p>
+      <ul>
+        <li>
+          Кнопки <strong>B, A, Y, X</strong> (правый Joy-Con) — Старт/Стоп
+          движения шарика.
+        </li>
+        <li>
+          Кнопки со стрелками <strong>◄ / ►</strong> (левый Joy-Con) —
+          уменьшение / увеличение скорости движения: одно нажатие — ровно
+          один шаг 0.05, удержание — плавное изменение.
+        </li>
+        <li>
+          Кнопки <strong>− / +</strong> (левый / правый Joy-Con) —
+          переключение рисунка вибрации по кругу: «−» — предыдущий
+          рисунок, «+» — следующий (после последнего идёт первый).
+        </li>
+        <li>
+          Кнопки со стрелками <strong>▲ / ▼</strong> (левый Joy-Con) —
+          уменьшение / увеличение силы вибрации шагом 5%.
+        </li>
+      </ul>
+      <p>
+        Сила вибрации запоминается <strong>отдельно для каждого
+        рисунка</strong> и хранится в браузере (localStorage). При
+        переключении рисунка (селектором или кнопками «−» / «+»)
+        настроенная ранее для него сила подставляется автоматически;
+        если силу для рисунка ещё не настраивали, ползунок сбрасывается
+        на <strong>50%</strong>.
+      </p>
+      <p>
+        «Рисунок вибрации» — последовательность коротких тактильных
+        импульсов, которая проигрывается в момент касания шариком края.
+        Всего 47 рисунков, сгруппированных по характеру: простые (один
+        акцент), ритмические (несколько ударов в ритме), динамические
+        (изменение силы и высоты тона внутри рисунка) и тактильные клики
+        в стиле Apple Watch. Ползунок силы масштабирует весь рисунок
+        целиком, сохраняя его внутреннюю форму.
+      </p>
+      <p>
+        <strong>Тактильные клики (стиль Apple Watch):</strong>
+      </p>
+      <ul>
+        <li>Короткие, чёткие и «сухие» импульсы без гула, хвоста и резонанса — как у Taptic Engine в Apple Watch.</li>
+        <li><strong>Щелчок</strong> — одиночный чёткий клик, как механический переключатель.</li>
+        <li><strong>Уведомление</strong> — два коротких тика, как приход сообщения.</li>
+        <li><strong>Успех</strong> — уверенный одиночный «тук» чуть ниже тоном.</li>
+        <li>Специальное поле <em>cutoff</em> заставляет проигрыватель сразу после импульса гасить актуатор (амплитуда 0), а средне-высокие частоты дают звонкий «клик» вместо низкого гула.</li>
+      </ul>
+      <p>
+        <strong>Добавленные рисунки:</strong>
+      </p>
+      <ul>
+        <li><strong>Двойной клик</strong> — два быстрых щелчка подряд, второй чуть сильнее: классический отклик «выбрано».</li>
+        <li><strong>Предупреждение</strong> — два твёрдых удара чуть ниже тоном: сигнал «внимание».</li>
+        <li><strong>Ошибка</strong> — три коротких резких низких импульса: классический сигнал отказа интерфейсов.</li>
+      </ul>
+      <p>
+        «Проверить вибрацию» проигрывает выбранный рисунок сразу на обоих
+        Joy-Cons, чтобы его можно было оценить до начала сессии.
+      </p>
+      <p class="note">
+        Шкала скорости перекалибрована: значение 1.00 соответствует прежней
+        скорости 1.5, стартовое значение — 1.00.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    Приложение для EMDR-терапии на основе библиотеки
+    <a href="https://github.com/tomayac/joy-con-webhid">joy-con-webhid</a>
+    (WebHID). Сначала подключите Joy-Cons через Bluetooth операционной
+    системы, затем нажмите «Подключить Joy-Cons».
+  </footer>
+</body>
+</html>
