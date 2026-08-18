@@ -94,7 +94,7 @@ const RUMBLE_PATTERNS = {
     { pause: 45 },
     { duration: 90, amplitude: 1, low: 170, high: 340 },
   ],
-  // Сильное сердцебиение: два мощных удара с увеличенной паузой.
+  // Сильное сердцебиение: два мощных ударов с увеличенной паузой.
   heartbeatStrong: [
     { duration: 100, amplitude: 1, low: 160, high: 320 },
     { pause: 150 },
@@ -578,13 +578,6 @@ const deviceKey = (device) =>
 
 connectButton.addEventListener('click', connectJoyCon);
 
-// Кнопка проверки: проигрывает текущий рисунок сразу на обеих сторонах,
-// чтобы рисунок можно было оценить до/вне сессии.
-testPatternButton?.addEventListener('click', () => {
-  void rumbleSidePattern('left');
-  void rumbleSidePattern('right');
-});
-
 const updateSpeedValue = () => {
   speedValue.textContent = Number(speedSlider.value).toFixed(2);
 };
@@ -712,10 +705,14 @@ applyPatternStrength(currentPatternName());
 // в выпадающем списке. Оба состояния хранятся в localStorage браузера
 // и восстанавливаются при следующем открытии страницы.
 //
-// Аудио-элементы создаются заранее с preload='auto' — к первому
-// касанию края файл уже запрошен по сети и готов к мгновенному
-// воспроизведению. Один элемент на файл: быстрое повторное касание
-// просто перезапускает звук с начала.
+// ПОЧЕМУ АДРЕС СЧИТАЕТСЯ ОТ import.meta.url: относительный путь
+// «sound/…» в new Audio() разрешается относительно адреса СТРАНИЦЫ,
+// и при любом расхождении адреса страницы и расположения скрипта
+// (переезд, вложенный каталог, отсутствие завершающего слэша) путь
+// уводил не туда. Теперь URL строится от расположения app.js — файлы
+// ищутся строго рядом со скриптом: https://…/joyconaz/sound/<файл>.
+// URL абсолютный и печатается в консоль — его сразу видно на вкладке
+// Network и в любом сообщении об ошибке.
 const SOUND_STORAGE_KEY = 'joyconaz.sound';
 const SOUND_FILES = [
   'chasqueo-100233.mp3',
@@ -724,11 +721,35 @@ const SOUND_FILES = [
 ];
 const DEFAULT_SOUND_FILE = SOUND_FILES[0];
 
+// Считает абсолютный URL файла звука от расположения этого скрипта.
+const soundUrl = (file) => new URL(`sound/${file}`, import.meta.url).href;
+
+// Аудио-элементы создаются заранее с preload='auto' — к первому
+// касанию края файл уже запрошен по сети и готов к мгновенному
+// воспроизведению. Один элемент на файл: быстрое повторное касание
+// просто перезапускает звук с начала.
 const soundElements = new Map(
   SOUND_FILES.map((file) => {
-    const audio = new Audio(`sound/${file}`);
+    const url = soundUrl(file);
+    console.info(`[sound] подготовка ${url}`);
+    const audio = new Audio(url);
     audio.preload = 'auto';
-    return [file, audio];
+
+    // Диагностика загрузки: любая ошибка (404, не тот регистр букв
+    // в имени файла — GitHub Pages различает регистр!) попадает
+    // в консоль с точным URL, и сразу видно, что чинить.
+    audio.addEventListener('error', () => {
+      console.warn(`[sound] НЕ УДАЛОСЬ ЗАГРУЗИТЬ ${url} (см. Network, F12)`);
+    });
+
+    // Промис «тихой» разблокировки звука. До разблокирования он уже
+    // решён (ожидание ничего не ждёт). Во время разблокирования
+    // настоящие запуски playEdgeSound ждут его завершения — это
+    // устраняет гонку, при которой отложенный pause() разблокировки
+    // мог заглушить только что начатый настоящий звук.
+    audio._unlockPromise = Promise.resolve();
+
+    return [file, { audio, url }];
   })
 );
 
@@ -780,86 +801,133 @@ const restoreSoundSettings = () => {
 
 restoreSoundSettings();
 
-soundEnabledToggle?.addEventListener('change', saveSoundSettings);
-soundFileSelect?.addEventListener('change', saveSoundSettings);
+// ── Разблокировка автовоспроизведения ────────────────────────────────
+//
+// Chromium разрешает звуковой play() только после «пользовательской
+// активности» — клика, касания или нажатия клавиши. События WebHID
+// (кнопки Joy-Con) такой активностью НЕ считаются. Поэтому при первом
+// же жесте «прогреваем» все аудио-элементы: беззвучно играем и сразу
+// останавливаем; после этого звук может звучать в любой момент.
+//
+// В отличие от прежнего варианта (once: true на pointerdown и keydown):
+// - слушатели остаются навсегда, но тело выполняется один раз
+//   (флаг audioUnlocked) — жест до загрузки модуля больше не «теряется»;
+// - пауза и сброс позиции происходят строго ДО настоящего
+//   воспроизведения: playSoundFromStart ждёт _unlockPromise.
+let audioUnlocked = false;
 
-// Проигрывает выбранный звук щелчка — в момент касания шариком края.
-// Если флажок выключен, ничего не делает. Звук перезапускается с начала
-// (currentTime = 0), чтобы быстрые повторные касания звучали как
-// отдельные щелчки. Отказ play() (ограничения автовоспроизведения
-// браузера, см. unlockAudioPlayback ниже) тихо игнорируется —
-// вибрация Joy-Con продолжает работать.
+const unlockAudio = () => {
+  if (audioUnlocked) {
+    return;
+  }
+  audioUnlocked = true;
+
+  for (const { audio, url } of soundElements.values()) {
+    if (!audio.paused) {
+      continue;
+    }
+    audio.volume = 0;
+    audio._unlockPromise = audio
+      .play()
+      .then(() => {
+        audio.pause();
+        try {
+          audio.currentTime = 0;
+        } catch {
+          // Позиция сбросится при следующем запуске.
+        }
+      })
+      .catch(() => {
+        console.warn(`[sound] разблокировка не удалась для ${url}`);
+      })
+      .finally(() => {
+        // Разблокировка завершена: последующие ожидания моментальны.
+        audio._unlockPromise = Promise.resolve();
+      });
+  }
+};
+
+for (const eventType of ['pointerdown', 'mousedown', 'touchstart', 'keydown']) {
+  document.addEventListener(eventType, unlockAudio, { passive: true });
+}
+
+// Проигрывает файл с самого начала. Сначала дожидается завершения
+// процедуры разблокировки (pause + сброс позиции), чтобы её задержавшийся
+// pause() не заглушил этот запуск, затем восстанавливает громкость,
+// отматывает в начало и запускает. Все отказы протоколируются в консоль:
+// NotAllowedError — на странице ещё не было клика/клавиши.
+const playSoundFromStart = async ({ audio, url }) => {
+  try {
+    await audio._unlockPromise;
+  } catch {
+    // Промис разблокировки изнутри никогда не отклоняется —
+    // на всякий случай просто продолжаем.
+  }
+  audio.volume = 1;
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // Файл ещё догружается — играем с той позиции, что есть.
+  }
+  try {
+    await audio.play();
+    console.info(`[sound] воспроизведение ${url}`);
+  } catch (error) {
+    const reason = error?.name ?? 'unknown';
+    console.warn(
+      `[sound] play() отклонён (${reason}) для ${url} — ` +
+        'если NotAllowedError, кликните один раз в любом месте страницы'
+    );
+  }
+};
+
+// Короткая вспышка списка звуков в момент срабатывания: событие видно
+// даже без наушников, что отделяет проблему «не запускается» от
+// проблемы «не слышно».
+const flashSoundSelect = () => {
+  soundFileSelect?.animate(
+    [
+      { boxShadow: '0 0 0px rgba(127, 193, 255, 0)' },
+      { boxShadow: '0 0 14px rgba(127, 193, 255, 0.85)' },
+      { boxShadow: '0 0 0px rgba(127, 193, 255, 0)' },
+    ],
+    { duration: 300, easing: 'ease-out' }
+  );
+};
+
+// Проигрывает выбранный звук щелчка — в момент касания шариком края,
+// а также как мгновенное прослушивание при включении флажка, смене
+// файла в списке и нажатии «Проверить вибрацию». Если флажок выключен,
+// ничего не делает. Звук перезапускается с начала, чтобы быстрые
+// повторные касания звучали как отдельные щелчки.
 const playEdgeSound = () => {
   if (!soundEnabledToggle?.checked) {
     return;
   }
   const file = soundFileSelect?.value ?? DEFAULT_SOUND_FILE;
-  const audio =
+  const entry =
     soundElements.get(file) ?? soundElements.get(DEFAULT_SOUND_FILE);
-  if (!audio) {
+  if (!entry) {
     return;
   }
-  try {
-    audio.currentTime = 0;
-  } catch {
-    // Файл ещё не догрузился — играем с той позиции, что есть.
-  }
-  const playback = audio.play();
-  if (playback) {
-    playback.catch(() => {});
-  }
+  flashSoundSelect();
+  void playSoundFromStart(entry);
 };
 
-// Разблокировка автовоспроизведения: Chromium разрешает звук в
-// audio.play() только после «пользовательской активности» — клика
-// мышью или нажатия клавиши. События WebHID (кнопки Joy-Con) такой
-// активностью НЕ считаются. Поэтому при первом же клике или нажатии
-// клавиши «прогреваем» все аудио-элементы беззвучным воспроизведением
-// (volume 0 → play → pause); после этого playEdgeSound() сможет
-// звучать в любой момент, включая управление только с Joy-Con.
-const unlockAudioPlayback = () => {
-  for (const audio of soundElements.values()) {
-    if (!audio.paused) {
-      continue;
-    }
-    const restoreVolume = () => {
-      audio.volume = 1;
-    };
-    audio.volume = 0;
-    const playback = audio.play();
-    if (playback) {
-      playback
-        .then(() => {
-          audio.pause();
-          try {
-            audio.currentTime = 0;
-          } catch {
-            // Позиция сбросится при следующем rewind в playEdgeSound().
-          }
-          restoreVolume();
-        })
-        .catch(restoreVolume);
-    } else {
-      restoreVolume();
-    }
-  }
-};
+// Включение флажка — сразу проигрываем выбранный щелчок: событие change
+// является пользовательским жестом, поэтому воспроизведение гарантированно
+// разрешено. Это и приятно, и мгновенная проверка работоспособности звука.
+soundEnabledToggle?.addEventListener('change', () => {
+  saveSoundSettings();
+  playEdgeSound();
+});
 
-document.addEventListener(
-  'pointerdown',
-  () => {
-    unlockAudioPlayback();
-  },
-  { once: true }
-);
-
-document.addEventListener(
-  'keydown',
-  () => {
-    unlockAudioPlayback();
-  },
-  { once: true }
-);
+// Смена файла в списке — мгновенное прослушивание нового щелчка
+// (тоже пользовательский жест). Играет только при включённом флажке.
+soundFileSelect?.addEventListener('change', () => {
+  saveSoundSettings();
+  playEdgeSound();
+});
 
 // Небольшая визуальная вспышка индикатора соответствующего Joy-Con.
 const buzzStatus = (element) => {
@@ -989,6 +1057,16 @@ const tryToggle = () => {
 };
 
 startStopButton.addEventListener('click', toggle);
+
+// Кнопка проверки: проигрывает текущий рисунок сразу на обеих сторонах
+// и, если звук включён, выбранный щелчок пальцев. Клик по кнопке —
+// пользовательский жест, поэтому звук слышен сразу же, без ограничений
+// автовоспроизведения: это самый быстрый способ проверить звук «на месте».
+testPatternButton?.addEventListener('click', () => {
+  void rumbleSidePattern('left');
+  void rumbleSidePattern('right');
+  playEdgeSound();
+});
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
