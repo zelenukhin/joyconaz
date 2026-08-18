@@ -149,6 +149,38 @@ input[type='range'] {
   accent-color: #7fc1ff;
 }
 
+/* Общий вид флажка с подписью — используется в ряду звука и в ряду
+   избранного («Избранный рисунок», «Только избранное»). */
+.check-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #dfe4e9;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.check-toggle input[type='checkbox'] {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: #7fc1ff;
+  cursor: pointer;
+}
+
+/* ── Ряд флажков избранного (под рисунком вибрации) ──────────────────
+   Отступ слева равен ширине подписи «Рисунок вибрации» в сетке
+   .slider-row (190px) плюс зазор колонки (0.9rem) — флажки стоят
+   ровно под выпадающим списком. */
+.favorites-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.6rem;
+  padding-inline-start: calc(190px + 0.9rem);
+}
+
 /* ── Ряд настроек звука щелчка ────────────────────────────────────────
    Флекс-строка: подпись фиксированной ширины (190px — как первая
    колонка .slider-row, чтобы подписи всех рядов выравнивались),
@@ -162,24 +194,6 @@ input[type='range'] {
 .sound-row > label[for='sound-file'] {
   color: #b7c0c9;
   flex: 0 0 190px;
-}
-
-.sound-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: #dfe4e9;
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.sound-toggle input[type='checkbox'] {
-  width: 1.15rem;
-  height: 1.15rem;
-  margin: 0;
-  accent-color: #7fc1ff;
-  cursor: pointer;
 }
 
 .sound-row select {
@@ -279,6 +293,12 @@ footer a {
 
   .slider-row output {
     grid-area: output;
+  }
+
+  /* На узких экранах подписи рядов уходят на отдельную строку —
+     выравнивать флажки избранного под списком больше не нужно. */
+  .favorites-row {
+    padding-inline-start: 0;
   }
 
   .sound-row {

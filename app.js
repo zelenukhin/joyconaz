@@ -12,6 +12,8 @@ const speedValue = document.querySelector('#speed-value');
 const rumbleSlider = document.querySelector('#rumble-strength');
 const rumbleValue = document.querySelector('#rumble-strength-value');
 const patternSelect = document.querySelector('#pattern');
+const favoritePatternToggle = document.querySelector('#favorite-pattern');
+const onlyFavoritesToggle = document.querySelector('#only-favorites');
 const testPatternButton = document.querySelector('#test-pattern');
 const soundEnabledToggle = document.querySelector('#sound-enabled');
 const soundFileSelect = document.querySelector('#sound-file');
@@ -723,6 +725,212 @@ const restorePatternSelection = () => {
   }
 };
 
+// ── Избранные рисунки вибрации ────────────────────────────────────────
+//
+// Флажок «Избранный рисунок» (#favorite-pattern) отражает/меняет
+// принадлежность ТЕКУЩЕГО выбранного рисунка к избранному:
+// - отмечен — текущий рисунок в списке избранного;
+// - снят — рисунок удалён из избранного.
+// Он синхронизируется при каждом переключении рисунка (список,
+// кнопки «−»/«+»: разные рисунки могут иметь разный статус) и сам
+// меняет статус при клике мышью, и при «горячей» комбинации кнопок:
+// L+R или ZL+ZR одновременно (см. handleFavoriteCombo ниже).
+//
+// Флажок «Только избранное» (#only-favorites) включает фильтр:
+// - в выпадающем списке видны только избранные рисунки;
+// - круговое переключение кнопками «−» / «+» тоже проходит только
+//   по избранным.
+// Если при включении флажка текущий рисунок не из избранного —
+// автоматически выбирается первый избранный (с его сохранённой силой);
+// если избранное пусто — фильтр не применяется (список полный),
+// чтобы интерфейс не остался без выбора. Избранные помечаются
+// звёздочкой ★ в тексте пункта.
+//
+// Хранение: список имён — joyconaz.favoritePatterns (JSON-массив),
+// состояние флажка фильтра — joyconaz.onlyFavorites (JSON true/false).
+const FAVORITE_PATTERNS_STORAGE_KEY = 'joyconaz.favoritePatterns';
+const ONLY_FAVORITES_STORAGE_KEY = 'joyconaz.onlyFavorites';
+
+// Минимальный интервал между переключениями избранного комбинациями
+// кнопок: защита от дребезга и от дублирования HID-пакетов.
+const FAVORITE_TOGGLE_MIN_INTERVAL_MS = 250;
+
+// Исходные подписи пунктов списка (без звёздочки) — снимаются один раз
+// при загрузке, чтобы rebuildPatternOptions всегда восстанавливал
+// «чистый» текст, а не накапливал ★ друг за другом.
+const PATTERN_BASE_LABELS = new Map(
+  [...(patternSelect?.options ?? [])].map((option) => [
+    option.value,
+    option.textContent.trim(),
+  ])
+);
+
+// Читает список избранных рисунков; ошибки обращения к localStorage
+// безопасно откатываются к пустому списку.
+const loadFavoritePatterns = () => {
+  try {
+    const raw = localStorage.getItem(FAVORITE_PATTERNS_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((name) => typeof name === 'string');
+  } catch (error) {
+    console.warn('Не удалось прочитать избранные рисунки:', error);
+    return [];
+  }
+};
+
+const saveFavoritePatterns = (favorites) => {
+  try {
+    localStorage.setItem(
+      FAVORITE_PATTERNS_STORAGE_KEY,
+      JSON.stringify(favorites)
+    );
+  } catch (error) {
+    console.warn('Не удалось сохранить избранные рисунки:', error);
+  }
+};
+
+const loadOnlyFavorites = () => {
+  try {
+    return JSON.parse(localStorage.getItem(ONLY_FAVORITES_STORAGE_KEY)) === true;
+  } catch {
+    return false;
+  }
+};
+
+const saveOnlyFavorites = (value) => {
+  try {
+    localStorage.setItem(ONLY_FAVORITES_STORAGE_KEY, JSON.stringify(Boolean(value)));
+  } catch {
+    // localStorage недоступен — просто живём без сохранения состояния.
+  }
+};
+
+const isFavorite = (patternName) => loadFavoritePatterns().includes(patternName);
+
+// Короткая золотистая вспышка флажка избранного: переключение с кнопок
+// контроллеров видно глазами даже не глядя на список.
+const flashFavoriteToggle = () => {
+  favoritePatternToggle?.animate(
+    [
+      { boxShadow: '0 0 0px rgba(255, 213, 79, 0)' },
+      { boxShadow: '0 0 14px rgba(255, 213, 79, 0.9)' },
+      { boxShadow: '0 0 0px rgba(255, 213, 79, 0)' },
+    ],
+    { duration: 300, easing: 'ease-out' }
+  );
+};
+
+// Подводит флажок «Избранный рисунок» под статус ТЕКУЩЕГО рисунка.
+// Вызывается при загрузке, при каждом переключении рисунка и после
+// каждого изменения избранного.
+const updateFavoriteToggle = () => {
+  if (favoritePatternToggle) {
+    favoritePatternToggle.checked = isFavorite(currentPatternName());
+  }
+};
+
+// Добавляет/удаляет рисунок из избранного и приводит интерфейс
+// в актуальное состояние: обновляет флажок, перерисовывает список
+// (звёздочки, видимость при включённом фильтре) — rebuildPatternOptions
+// при необходимости сам переведёт выбор на доступный рисунок.
+const setFavorite = (patternName, favorite) => {
+  const favorites = loadFavoritePatterns();
+  const already = favorites.includes(patternName);
+  if (favorite === already) {
+    return;
+  }
+  if (favorite) {
+    favorites.push(patternName);
+  } else {
+    favorites.splice(favorites.indexOf(patternName), 1);
+  }
+  saveFavoritePatterns(favorites);
+  flashFavoriteToggle();
+  rebuildPatternOptions();
+};
+
+// Переключает избранность текущего рисунка (для комбинаций кнопок
+// L+R / ZL+ZR и для дублирования клика мышью по самому флажку).
+const toggleCurrentFavorite = () => {
+  const name = currentPatternName();
+  setFavorite(name, !isFavorite(name));
+};
+
+// Пересобирает отображение выпадающего списка под состояние избранного:
+// - проставляет/снимает звёздочку ★ в подписи избранных пунктов;
+// - скрывает чужие пункты, если включён фильтр «Только избранное»
+//   и в избранном хотя бы один рисунок;
+// - если из-за фильтра текущий выбранный пункт оказался скрыт —
+//   выбирается первый видимый (первый избранный по порядку списка),
+//   выбор сохраняется, подставляется его сила.
+const rebuildPatternOptions = () => {
+  if (!patternSelect) {
+    return;
+  }
+  const favorites = loadFavoritePatterns();
+  const filterActive =
+    Boolean(onlyFavoritesToggle?.checked) && favorites.length > 0;
+
+  let firstVisible = null;
+  let currentVisible = false;
+  for (const option of patternSelect.options) {
+    const favored = favorites.includes(option.value);
+    option.hidden = filterActive && !favored;
+    const baseLabel = PATTERN_BASE_LABELS.get(option.value) ?? option.value;
+    option.textContent = (favored ? '★ ' : '') + baseLabel;
+    if (!option.hidden) {
+      if (firstVisible === null) {
+        firstVisible = option.value;
+      }
+      if (option.value === patternSelect.value) {
+        currentVisible = true;
+      }
+    }
+  }
+
+  if (filterActive && !currentVisible && firstVisible !== null) {
+    patternSelect.value = firstVisible;
+    savePatternSelection(firstVisible);
+    applyPatternStrength(firstVisible);
+  }
+
+  updateFavoriteToggle();
+};
+
+// Список рисунков для кругового переключения кнопками «−» / «+»:
+// при включённом фильтре — только избранные, в исходном порядке
+// полного списка; если фильтр выключен или избранное пусто — все.
+const switchablePatternValues = () => {
+  if (!onlyFavoritesToggle?.checked) {
+    return [...(patternSelect?.options ?? [])].map((option) => option.value);
+  }
+  const favorites = loadFavoritePatterns();
+  if (favorites.length === 0) {
+    return [...(patternSelect?.options ?? [])].map((option) => option.value);
+  }
+  return [...(patternSelect?.options ?? [])]
+    .map((option) => option.value)
+    .filter((name) => favorites.includes(name));
+};
+
+// Клик по флажку «Избранный рисунок»: добавить/удалить текущий рисунок.
+favoritePatternToggle?.addEventListener('change', () => {
+  setFavorite(currentPatternName(), favoritePatternToggle.checked);
+});
+
+// Клик по флажку «Только избранное»: сохранить состояние и перестроить
+// список (при необходимости выбор переедет на первый избранный).
+onlyFavoritesToggle?.addEventListener('change', () => {
+  saveOnlyFavorites(onlyFavoritesToggle.checked);
+  rebuildPatternOptions();
+});
+
 speedSlider.addEventListener('input', updateSpeedValue);
 
 // Изменение силы ползунком: обновляем индикатор и запоминаем силу
@@ -734,21 +942,28 @@ rumbleSlider.addEventListener('input', () => {
   rememberPatternStrength(currentPatternName(), rumbleSlider.value);
 });
 
-// Ручной выбор рисунка в селекторе: запоминаем выбор и подставляем
-// сохранённую для него силу или сбрасываем на 50%. Программная установка
-// patternSelect.value (switchPattern, restorePatternSelection) событие
-// change не порождает — двойной работы нет.
+// Ручной выбор рисунка в селекторе: запоминаем выбор, подставляем
+// сохранённую для него силу или сбрасываем на 50%, и синхронизируем
+// флажок «Избранный рисунок» со статусом нового рисунка.
+// Программная установка patternSelect.value события change
+// не порождает — двойной работы нет.
 patternSelect?.addEventListener('change', () => {
   savePatternSelection(currentPatternName());
   applyPatternStrength(currentPatternName());
+  updateFavoriteToggle();
 });
 
 updateSpeedValue();
 updateRumbleValue();
 // При загрузке страницы сначала восстанавливаем последний выбранный
-// рисунок, затем подставляем силу, сохранённую именно для него
-// (если её не настраивали — остаётся 50% из HTML).
+// рисунок, затем состояние фильтра избранного (rebuildPatternOptions
+// при необходимости переведёт выбор на доступный рисунок), и под конец
+// подставляем силу именно текущего рисунка.
 restorePatternSelection();
+if (onlyFavoritesToggle) {
+  onlyFavoritesToggle.checked = loadOnlyFavorites();
+}
+rebuildPatternOptions();
 applyPatternStrength(currentPatternName());
 
 // ── Звук щелчка пальцев ──────────────────────────────────────────────
@@ -1262,6 +1477,9 @@ const changeSpeed = (delta) => {
 // фронт нажатия корректно определяется по карте previousButtons
 // для каждого устройства отдельно.
 //
+// При включённом фильтре «Только избранное» цикл проходит только
+// по избранным рисункам (см. switchablePatternValues).
+//
 // Шаг изменения силы вибрации стрелками ▲ / ▼ — совпадает с шагом
 // ползунка, чтобы значения всегда ложились на его сетку.
 const RUMBLE_STRENGTH_STEP = 0.05;
@@ -1284,12 +1502,14 @@ const PATTERN_VALUES = [...(patternSelect?.options ?? [])].map(
 );
 
 // Переключает рисунок вибрации по кругу: delta = +1 — следующий рисунок,
-// delta = −1 — предыдущий; после последнего рисунка идёт первый,
-// перед первым — последний (циклический обход без «тупиков» на краях).
-// Сразу запоминаем выбор и подставляем силу, сохранённую для нового
-// рисунка (или 50%).
+// delta = −1 — предыдущий; после последнего идёт первый, перед первым —
+// последний (циклический обход без «тупиков» на краях). Список обхода —
+// все рисунки или только избранные (если включён фильтр и избранное
+// не пусто). Сразу запоминаем выбор, подставляем сохранённую для нового
+// рисунка силу (или 50%) и синхронизируем флажок «Избранный рисунок».
 const switchPattern = (delta) => {
-  if (PATTERN_VALUES.length === 0) {
+  const values = switchablePatternValues();
+  if (values.length === 0) {
     return;
   }
   const now = performance.now();
@@ -1298,13 +1518,13 @@ const switchPattern = (delta) => {
   }
   lastPatternSwitchAt = now;
 
-  const index = PATTERN_VALUES.indexOf(patternSelect.value);
+  const index = values.indexOf(patternSelect.value);
   const current = index === -1 ? 0 : index;
-  const next =
-    (current + delta + PATTERN_VALUES.length) % PATTERN_VALUES.length;
-  patternSelect.value = PATTERN_VALUES[next];
-  savePatternSelection(PATTERN_VALUES[next]);
-  applyPatternStrength(PATTERN_VALUES[next]);
+  const next = (current + delta + values.length) % values.length;
+  patternSelect.value = values[next];
+  savePatternSelection(values[next]);
+  applyPatternStrength(values[next]);
+  updateFavoriteToggle();
 };
 
 // Меняет силу вибрации на заданный шаг с ограничением диапазона ползунка
@@ -1390,10 +1610,66 @@ const handleArrowButtons = (buttons) => {
   }
 };
 
+// ── Комбинации кнопок для избранного: L+R и ZL+ZR ────────────────────
+//
+// L Button и ZL физически находятся на ЛЕВОМ Joy-Con, R Button и ZR —
+// на ПРАВОМ. Значит «нажать L и R одновременно» — это событие МЕЖДУ
+// ДВУМЯ устройствами: внутри пакета одного контроллера обе кнопки пары
+// никогда не бывают нажаты (чужая сторона в пакете всегда false).
+// Поэтому состояние агрегируется по устройствам: liveButtons хранит
+// ПОСЛЕДНИЙ пакет каждого контроллера, а «фронт комбинации» — момент,
+// когда ОБЕ кнопки пары стали нажатыми (независимо от того, какая
+// из них была нажата первой).Отпустил любую из пары — комбинация
+// «снялась», и новое её замыкание снова считается нажатием.
+//
+// Защита от дребезга — FAVORITE_TOGGLE_MIN_INTERVAL_MS.
+const liveButtons = new Map();
+const favoriteComboState = { lr: false, zlzr: false };
+let lastFavoriteToggleAt = 0;
+
+const handleFavoriteCombo = () => {
+  let l = false;
+  let r = false;
+  let zl = false;
+  let zr = false;
+  for (const buttons of liveButtons.values()) {
+    if (Boolean(buttons.l)) {
+      l = true;
+    }
+    if (Boolean(buttons.r)) {
+      r = true;
+    }
+    if (Boolean(buttons.zl)) {
+      zl = true;
+    }
+    if (Boolean(buttons.zr)) {
+      zr = true;
+    }
+  }
+
+  const lr = l && r;
+  const zlzr = zl && zr;
+
+  if ((lr && !favoriteComboState.lr) || (zlzr && !favoriteComboState.zlzr)) {
+    const now = performance.now();
+    if (now - lastFavoriteToggleAt >= FAVORITE_TOGGLE_MIN_INTERVAL_MS) {
+      lastFavoriteToggleAt = now;
+      console.debug('Favorites combo (L+R / ZL+ZR) toggled');
+      toggleCurrentFavorite();
+    }
+  }
+
+  favoriteComboState.lr = lr;
+  favoriteComboState.zlzr = zlzr;
+};
+
 // Основной обработчик кнопок Joy-Con. key — ключ физического устройства,
 // по нему отслеживаются предыдущие состояния кнопок.
 const handleButtons = (key, buttons) => {
   const prev = previousButtons.get(key) || {};
+
+  // Свежий срез кнопок устройства — для межконтроллерных комбинаций.
+  liveButtons.set(key, buttons);
 
   // B, A, Y, X — Старт/Стоп движения шарика.
   // Реагируем только на момент нажатия (фронт).
@@ -1418,6 +1694,7 @@ const handleButtons = (key, buttons) => {
   // Кнопки «+» / «−» — переключение рисунка вибрации по кругу:
   // «+» (правый Joy-Con) — следующий рисунок,
   // «−» (левый Joy-Con) — предыдущий рисунок.
+  // При включённом фильтре — только между избранными.
   // undefined в пакете означает «кнопка этим контроллером не отчитывается»,
   // Boolean(undefined) === false, поэтому чужие пакеты фронт не создают.
   if (Boolean(buttons.plus) && !prev.plus) {
@@ -1448,7 +1725,14 @@ const handleButtons = (key, buttons) => {
     minus: buttons.minus === undefined ? undefined : Boolean(buttons.minus),
     up: buttons.up === undefined ? undefined : Boolean(buttons.up),
     down: buttons.down === undefined ? undefined : Boolean(buttons.down),
+    l: buttons.l === undefined ? undefined : Boolean(buttons.l),
+    r: buttons.r === undefined ? undefined : Boolean(buttons.r),
+    zl: buttons.zl === undefined ? undefined : Boolean(buttons.zl),
+    zr: buttons.zr === undefined ? undefined : Boolean(buttons.zr),
   });
+
+  // Комбинации L+R / ZL+ZR — после обновления среза кнопок устройства.
+  handleFavoriteCombo();
 };
 
 // Joy-Cons могут «засыпать» до первого касания, поэтому слушателей
@@ -1483,6 +1767,18 @@ setInterval(async () => {
       await joyCon.enableVibration();
     } catch (error) {
       console.error('Не удалось включить вибрацию:', error);
+    }
+  }
+
+  // Чистим устаревшие срезы кнопок отключившихся контроллеров, чтобы
+  // «залипшая» нажатой кнопка исчезнувшего устройства не удерживала
+  // комбинацию L+R / ZL+ZR замкнутой бесконечно.
+  const connectedKeys = new Set(
+    [...connectedJoyCons.values()].map((joyCon) => deviceKey(joyCon.device))
+  );
+  for (const key of [...liveButtons.keys()]) {
+    if (!connectedKeys.has(key)) {
+      liveButtons.delete(key);
     }
   }
 
