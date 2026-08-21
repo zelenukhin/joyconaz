@@ -1,0 +1,529 @@
+:root {
+  color-scheme: dark;
+  --left-color: #00b2dc;
+  --right-color: #ff493e;
+  --panel-bg: #171d24;
+  --panel-border: #2a3138;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: system-ui, sans-serif;
+  background-color: #101418;
+  color: #e8eaed;
+}
+
+/* ── Page Header — Window dragging area ────────────────────────
+   System title bar is hidden (titleBarStyle: 'hidden' / 'hiddenInset' in main.js),
+   so the window is dragged by the page header with the "EMDR Therapy" title.
+   On macOS the native "traffic lights" remain top left over the header,
+   on Windows/Linux the window buttons (titleBarOverlay) in app colors
+   are top right; these are native elements, and clicks on them aren't
+   intercepted by the page. app-region is a Chromium/Electron property:
+   in a normal browser both declarations are just ignored, web version untouched. */
+header {
+  text-align: center;
+  padding: 1rem 1rem 0;
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}
+
+/* Interactive elements inside the header (if added in the future)
+   should not "eat" window dragging — explicit no-drag for them.
+   Currently, only the title is in the header, this rule is future-proofing. */
+header button,
+header a,
+header select,
+header input,
+header label {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+header h1 {
+  margin: 0.25rem 0;
+}
+
+/* The block with the track and ball goes RIGHT AFTER the header,
+   before the control panel. The block DOES NOT stretch vertically
+   (flex-grow intentionally removed): the track has fixed height (84px)
+   and always takes up exactly the space it needs — on window height resize
+   the ball block size doesn't change. The control panel is pressed tight
+   below it — the gap between them is set by main's bottom padding. */
+main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 1.5rem 0 1.25rem;
+}
+
+#track {
+  position: relative;
+  width: min(960px, 92vw);
+  height: 84px;
+  border-radius: 42px;
+  border: 2px solid var(--panel-border);
+  background-color: var(--panel-bg);
+}
+
+#track::before,
+#track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 44px;
+  border-radius: 3px;
+}
+
+#track::before {
+  left: 10px;
+  background-color: var(--left-color);
+}
+
+#track::after {
+  right: 10px;
+  background-color: var(--right-color);
+}
+
+#ball {
+  position: absolute;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: radial-gradient(circle at 35% 30%, #ffffff, #7fc1ff 55%, #3a79b8);
+  box-shadow: 0 0 26px rgba(127, 193, 255, 0.55);
+}
+
+#controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: min(680px, 92vw);
+  /* Control panel is pinned to the top — right under the block
+     with the track and ball (no extra margin: the gap is provided
+     by main bottom padding). Auto-margin is NOT used here so the
+     panel doesn't slide to the bottom of the window. */
+  margin-top: 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background-color: var(--panel-bg);
+}
+
+.buttons-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 1.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background-color: #232b34;
+  color: #e8eaed;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #2b3540;
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 210px 1fr 80px;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.slider-row label {
+  color: #b7c0c9;
+}
+
+.slider-row output {
+  font-variant-numeric: tabular-nums;
+  color: #dfe4e9;
+  text-align: right;
+}
+
+input[type='range'] {
+  width: 100%;
+  accent-color: #7fc1ff;
+}
+
+/* General look of a toggle checkbox with label — used in sound row and
+   favorites row ("Favorite pattern", "Favorites only"). */
+.check-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #dfe4e9;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.check-toggle input[type='checkbox'] {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: #7fc1ff;
+  cursor: pointer;
+}
+
+/* ── Favorites toggle row (under vibration pattern) ──────────────────
+   Left padding equals the width of "Vibration Pattern" label in
+   .slider-row grid (210px) plus column gap (0.9rem) — the checkboxes align
+   perfectly under the dropdown list. */
+.favorites-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.6rem;
+  padding-inline-start: calc(210px + 0.9rem);
+}
+
+/* ── Click sound settings row ────────────────────────────────────────
+   Flex row: fixed width label (210px — like the first column in .slider-row,
+   so all row labels align), then the toggle checkbox and file select list. */
+.sound-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.sound-row > label[for='sound-file'] {
+  color: #b7c0c9;
+  flex: 0 0 210px;
+}
+
+.sound-row select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background-color: #232b34;
+  color: #e8eaed;
+}
+
+#status {
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+  padding-top: 0.35rem;
+}
+
+.status-side {
+  font-size: 0.95rem;
+  opacity: 0.55;
+  transform-origin: center;
+}
+
+.status-side.connected {
+  opacity: 1;
+}
+
+.status-side.left.connected {
+  color: var(--left-color);
+}
+
+.status-side.right.connected {
+  color: var(--right-color);
+}
+
+.help {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 0.75rem;
+  font-size: 0.92rem;
+  color: #b7c0c9;
+}
+
+.help p {
+  margin: 0;
+}
+
+.help ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.help li {
+  margin: 0.15rem 0;
+}
+
+.help strong {
+  color: #dfe4e9;
+}
+
+.help code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+
+/* ── "Settings", "Joy-Con Controls", "Help", and "ABC of EMDR" buttons row ─────────────────────────────────────────────────────
+   Placed at the end of the help block, centered. Left — "Settings" button
+   (#settings-open), opening the modal for saving/loading settings; next —
+   "Joy-Con Controls" button (#controls-open), opening the modal with
+   the controller command list; then — "Help" button (#help-open), opening
+   the help overlay (#help-overlay); right — "ABC of EMDR" button (#azbuka-open),
+   opening the overlay with info about the author and EMDR translation groups
+   (#azbuka-overlay). */
+.help-button-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+}
+
+/* ── Modal Overlays (Help, Joy-Con Controls, Settings, ABC of EMDR) ─────────────────────────────────────────────────────────
+   Long help text, controller command list, settings window, and "ABC of EMDR"
+   are moved from the main screen to modal overlays: semi-transparent backdrop
+   covering the whole screen, centered dialog with scrolling for long content.
+   Opened by the "Help", "Joy-Con Controls", "Settings", and "ABC of EMDR" buttons,
+   closed by cross, backdrop click, or Esc key (app.js).
+   Separate rule for [hidden] is mandatory: display: flex would override
+   the standard hidden attribute hiding, and the overlay would always show. */
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgba(0, 0, 0, 0.62);
+}
+
+.help-overlay[hidden] {
+  display: none;
+}
+
+.help-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, 100%);
+  max-height: min(82vh, 760px);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background-color: var(--panel-bg);
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.55);
+}
+
+.help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.help-header h2 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+/* Close cross — shared across "Help" (#help-close),
+   "Joy-Con Controls" (#controls-close), "Settings" (#settings-close),
+   and "ABC of EMDR" (#azbuka-close) overlays. */
+#help-close,
+#controls-close,
+#settings-close,
+#azbuka-close {
+  padding: 0.1rem 0.65rem;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+.help-body {
+  overflow-y: auto;
+  padding: 0.9rem 1.25rem 1.15rem;
+  font-size: 0.92rem;
+  color: #b7c0c9;
+}
+
+.help-body p {
+  margin: 0;
+}
+
+.help-body p + p,
+.help-body ul + p {
+  margin-top: 0.6rem;
+}
+
+.help-body ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.help-body li {
+  margin: 0.15rem 0;
+}
+
+.help-body strong {
+  color: #dfe4e9;
+}
+
+.help-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+
+/* ── Links inside modal overlays ─────────────────────────────────────
+   Links to "ABC of EMDR" groups in author overlay: app accent color
+   and explicit underline — standard browser blue on dark background
+   would look alien and hard to read. */
+.help-body a {
+  color: #7fc1ff;
+}
+
+.help-body a:hover {
+  color: #a8d7ff;
+}
+
+/* ── Images inside modal overlays ────────────────────────────────
+   The Joy-Con button scheme (joycon_front_names.png) is baked into HTML
+   with width="690" height="407" attributes: they preserve aspect ratio
+   and prevent layout shifts during load, but the hard 690px width OVERFLOWED
+   the dialog (.help-body work width is ~640px, even less on narrow screens)
+   and spawned a horizontal scroll. max-width: 100% alongside height: auto
+   override the attributes: actual sizing is given by CSS — the image fits
+   into the dialog on any screen, scroll goes away. */
+.help-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.4rem auto;
+  border-radius: 8px;
+}
+
+/* Margin between a paragraph and an image following immediately after it
+   (the button scheme in "Joy-Con Controls" overlay comes right after the header <p>). */
+.help-body p + img {
+  margin-top: 0.6rem;
+}
+
+/* ── Numbered button markers ("Joy-Con Controls" overlay) ────────────
+   Button numbers match the joycon_front_names.png diagram. The former unicode
+   circled digits ①–⑪ are single small glyphs roughly matching font size:
+   at .help-body text size (0.92rem ≈ 15px), the digit inside the circle
+   was ~6–7px and unreadable, plus glyph rendering depends on font and OS
+   (often ugly on Windows). Now using normal digits in a CSS circle:
+   readable at any size, the circle is perfectly round on all platforms,
+   no reliance on glyph presence in fonts. */
+.num {
+  display: inline-block;
+  min-width: 1.5em;
+  height: 1.5em;
+  line-height: 1.5;
+  padding: 0 0.15em;
+  border-radius: 50%;
+  background-color: #7fc1ff;
+  color: #101418;
+  font-size: 0.72em;
+  font-weight: 700;
+  text-align: center;
+  vertical-align: 0.18em;
+  user-select: none;
+}
+
+/* ── Action buttons inside modal overlay ("Settings" overlay) ────────
+   The row with "Save settings" / "Load settings" buttons
+   (.buttons-row inside .help-body) is separated from description text
+   by a top margin. Without this rule, the buttons stuck to the last paragraph:
+   .help-body zeroes paragraph margins (p { margin: 0 }) and only adds space
+   BETWEEN adjacent paragraphs (p + p), and the flex-container itself has
+   no margins — due to the zero bottom margin of the last <p> and zero top
+   margin of the buttons row, they visually overlapped the description.
+   Extra bottom margin acts as insurance on narrow screens where buttons wrap. */
+.help-body .buttons-row {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* The Joy-Con connection hint is pinned to the control panel:
+   without an auto top margin, the hint comes right after #controls
+   (gap is provided by its own top padding), and all FREE vertical space
+   of the body is left at the bottom — the whole UI is gathered at the top
+   of the page, including this text.
+   BOTTOM padding 10px — "air" between hint text and the bottom window edge:
+   with height fitting to content, the window ends right after the hint,
+   and without padding the text would stick to the frame. Padding is part
+   of the footer's box (getBoundingClientRect in main.js accounts for it),
+   so window height fitting correctly includes it. */
+footer {
+  padding: 1rem 1rem 10px;
+  font-size: 0.8rem;
+  color: #9aa4ae;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .slider-row {
+    grid-template-columns: 1fr 70px;
+    grid-template-areas:
+      'label label'
+      'slider output';
+  }
+
+  .slider-row label {
+    grid-area: label;
+  }
+
+  .slider-row input {
+    grid-area: slider;
+  }
+
+  .slider-row output {
+    grid-area: output;
+  }
+
+  /* On narrow screens row labels drop to their own line —
+     we no longer need to align favorite checkboxes under the list. */
+  .favorites-row {
+    padding-inline-start: 0;
+  }
+
+  .sound-row {
+    flex-wrap: wrap;
+  }
+
+  .sound-row > label[for='sound-file'] {
+    flex-basis: 100%;
+  }
+
+  /* Modal overlays need less margin from edges on narrow screens. */
+  .help-overlay {
+    padding: 0.75rem;
+  }
+}

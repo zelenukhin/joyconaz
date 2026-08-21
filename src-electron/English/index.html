@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EMDR Therapy with Joy-Cons (WebHID)</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="app.js" type="module"></script>
+</head>
+<body>
+  <header>
+    <h1>EMDR with Joy-Cons</h1>
+  </header>
+
+  <main>
+    <div id="track">
+      <div id="ball"></div>
+    </div>
+  </main>
+
+  <section id="controls">
+    <div class="buttons-row">
+      <button id="connect-joy-cons" type="button">Connect Joy-Cons</button>
+      <button id="start-stop" type="button">Start</button>
+      <button id="test-pattern" type="button">Test Vibration</button>
+    </div>
+
+    <div class="slider-row">
+      <label for="speed">Movement Speed</label>
+      <input
+        id="speed"
+        type="range"
+        min="0.1"
+        max="2"
+        step="0.05"
+        value="1"
+      />
+      <output id="speed-value" for="speed">1.00</output>
+    </div>
+
+    <div class="slider-row">
+      <label for="rumble-strength">Vibration Strength</label>
+      <input
+        id="rumble-strength"
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value="0.5"
+      />
+      <output id="rumble-strength-value" for="rumble-strength">50%</output>
+    </div>
+
+    <div class="slider-row">
+      <label for="pattern">Vibration Pattern</label>
+      <select id="pattern">
+        <optgroup label="Simple">
+          <option value="pulse" selected>
+            Pulse — basic option
+          </option>
+          <option value="tap">Tap — short single</option>
+          <option value="staccato">Staccato — sharp click</option>
+        </optgroup>
+        <optgroup label="Rhythmic">
+          <option value="doubleTap">Double tap</option>
+          <option value="tripleTap">Triple tap</option>
+          <option value="heartbeat">Heartbeat</option>
+          <option value="heartbeatStrong">Strong heartbeat</option>
+          <option value="metronome">Metronome (even ticks)</option>
+          <option value="morse">Morse (dot-dot-dash)</option>
+          <option value="tickTock">
+            Tick-Tock — two beats of different pitch
+          </option>
+          <option value="gallop">Gallop — double rhythmic step</option>
+          <option value="waltz">Waltz — 3/4 rhythm with accent on the first</option>
+          <option value="samba">Samba — Latin American rhythm</option>
+          <option value="march">March — clear military rhythm</option>
+        </optgroup>
+        <optgroup label="Dynamic">
+          <option value="softWave">Soft wave (rise and fall)</option>
+          <option value="crescendo">
+            Crescendo — rise to peak and sharp drop
+          </option>
+          <option value="cascade">
+            Cascade — descending 'waterfall' in pitch and strength
+          </option>
+          <option value="echo">Echo — strike with fading responses</option>
+          <option value="zigzag">
+            Zigzag — alternating strong and quiet beats
+          </option>
+          <option value="oceanWave">
+            Ocean wave — softest and longest wave with two crests
+          </option>
+          <option value="bounce">Bounce — fading ball bounces</option>
+          <option value="tremolo">Tremolo — frequent trembling</option>
+          <option value="earthquake">Earthquake — low hollow rumble</option>
+          <option value="pulseTrain">Train — pulse train with rise and fall</option>
+          <option value="swell">Swell — smooth rise and fall</option>
+          <option value="buzz">Buzz — fast short pulses</option>
+          <option value="siren">Siren — alternating low and high frequency</option>
+          <option value="firework">Firework — explosion with fading sparks</option>
+          <option value="raindrops">Raindrops — irregular touches</option>
+          <option value="thunder">Thunder — low-frequency rumble with strike</option>
+          <option value="windGust">Wind gust — rise and fall</option>
+          <option value="butterfly">Butterfly — gentle light touches</option>
+          <option value="drumRoll">Drum roll — rising beats</option>
+          <option value="sonar">Sonar — ping with fading echo</option>
+          <option value="shiver">Shiver — fast fine pulses</option>
+          <option value="purring">Purring — soft modulation</option>
+        </optgroup>
+        <optgroup label="Haptic clicks (Apple Watch style)">
+          <option value="click">Click — single crisp click</option>
+          <option value="softClick">Soft click — delicate</option>
+          <option value="crispTick">Crisp tick — short high</option>
+          <option value="notification">Notification — two ticks, like a message</option>
+          <option value="success">Success — confident single 'tock'</option>
+          <option value="alert">Alert — three ticks</option>
+          <option value="pop">Pop — light high click</option>
+          <option value="doubleTick">Double tick — two soft ticks</option>
+          <option value="doubleClick">Double click — two fast clicks in a row</option>
+          <option value="warning">Warning — two dull lower-pitch strikes</option>
+          <option value="error">Error — three sharp low pulses</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="favorites-row">
+      <label
+        class="check-toggle"
+        title="Add the current pattern to favorites or remove it. From controllers — press L+R or ZL+ZR simultaneously."
+      >
+        <input id="favorite-pattern" type="checkbox" />
+        <span>Favorite pattern</span>
+      </label>
+      <label
+        class="check-toggle"
+        title="Add the current pattern to the 'random' list or remove it. The list is independent of favorites; in random mode, new patterns are chosen exactly from it. From controller — Capture button (left Joy-Con)."
+      >
+        <input id="random-pattern" type="checkbox" />
+        <span>Use randomly</span>
+      </label>
+      <label
+        class="check-toggle"
+        title="Only favorite patterns are in the list; '-' / '+' switching also only goes through them. Does not affect pattern choice in random mode."
+      >
+        <input id="only-favorites" type="checkbox" />
+        <span>Favorites only</span>
+      </label>
+      <label
+        class="check-toggle"
+        title="Two-stage random selection on each edge touch: stage 1 - 'coin flip', whether to change pattern; if 'yes', stage 2 selects a new pattern from the 'random' list, if 'no', plays the current one again. Strength is saved per pattern, the slider is ignored. From controller — press right stick (right Joy-Con)."
+      >
+        <input id="random-mode" type="checkbox" />
+        <span>Random mode</span>
+      </label>
+    </div>
+
+    <div class="sound-row">
+      <label for="sound-file">Click Sound</label>
+      <label
+        class="check-toggle"
+        title="Enable or disable click sound when the ball touches the edge. The click sounds in the speaker on the edge's side: right edge — right speaker, left — left. A test click on enable sounds centered and only when ball movement is stopped."
+      >
+        <input id="sound-enabled" type="checkbox" />
+        <span>Enable</span>
+      </label>
+      <select id="sound-file">
+        <option value="chasqueo-100233.mp3">
+          Finger snap — option 1
+        </option>
+        <option value="finger-snap-101756.mp3">
+          Finger snap — option 2
+        </option>
+        <option value="finger-snap-43482.mp3">
+          Finger snap — option 3
+        </option>
+      </select>
+    </div>
+
+    <div id="status">
+      <span id="status-left" class="status-side left"
+        >Left: Not connected</span
+      >
+      <span id="status-right" class="status-side right"
+        >Right: Not connected</span
+      >
+    </div>
+
+    <div class="help">
+      <div class="help-button-row">
+        <button id="settings-open" type="button">Settings</button>
+        <button id="controls-open" type="button">Joy-Con Controls</button>
+        <button id="help-open" type="button">Help</button>
+        <button id="azbuka-open" type="button">About the App</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    First connect the Joy-Cons via Bluetooth in your OS,
+    then click 'Connect Joy-Cons'.
+  </footer>
+
+  <!-- Modal window "Joy-Con Controls": controller command list,
+       moved here from the main screen. Hidden by default
+       (hidden attribute), opened by "Joy-Con Controls" button
+       (logic in app.js), closed by cross, backdrop click, or Esc key.
+       Numbered button markers — span.num, numbers correspond to labels
+       on the joycon_front_names.png diagram. -->
+  <div id="controls-overlay" class="help-overlay" hidden>
+    <div
+      class="help-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="controls-title"
+    >
+      <div class="help-header">
+        <h2 id="controls-title">Joy-Con Controls</h2>
+        <button
+          id="controls-close"
+          type="button"
+          aria-label="Close Joy-Con controls"
+        >
+          ×
+        </button>
+      </div>
+      <div class="help-body">
+        <p><strong>Controls from Joy-Cons</strong></p>
+        <img
+          src="images/joycon_front_names.png"
+          alt="Joy-Cons with numbered buttons: 1 — L Button, 2 — − Button, 3 — Left Stick, 4 — Directional Buttons, 5 — Capture Button, 6 — Rail, 7 — R Button, 8 — + Button, 9 — A/B/X/Y Buttons, 10 — Right Stick, 11 — HOME Button"
+          width="690"
+          height="407"
+        />
+        <p><strong>Where to find the necessary buttons:</strong></p>
+        <ul>
+          <li>
+            <strong>Shoulder buttons L <span class="num">1</span> / R
+            <span class="num">7</span> and triggers (ZL / ZR)</strong> — on the top
+            edge of the controllers right under your index fingers.
+          </li>
+          <li>
+            <strong>Button '−' <span class="num">2</span></strong> —
+            the elongated minus sign button at the top of the left controller.
+          </li>
+          <li>
+            <strong>Button '+' <span class="num">8</span></strong> — the plus
+            sign button at the top of the right controller.
+          </li>
+          <li>
+            <strong>Capture button <span class="num">5</span></strong> —
+            the small square button below the arrows on the left controller.
+          </li>
+          <li>
+            <strong>Right stick <span class="num">10</span></strong> — the round
+            joystick on the right controller (can be tilted in directions
+            and pressed inwards).
+          </li>
+        </ul>
+        <p><strong>Ball movement:</strong></p>
+        <ul>
+          <li>
+            Any of the letter buttons <strong>A, B, X, Y
+            <span class="num">9</span></strong> (right controller) — Start /
+            Stop movement.
+          </li>
+          <li>
+            Arrows <strong>◄ and ►</strong> <span class="num">4</span> (left
+            controller) — speed adjustment: a single press changes speed
+            by 0.10, holding changes it smoothly.
+          </li>
+          <li>
+            <strong>Right stick tilt</strong>
+            <span class="num">10</span> (right/up — faster, left/down —
+            slower) — speed change by 0.10 for each tilt from the center.
+          </li>
+        </ul>
+        <p><strong>Vibration setup:</strong></p>
+        <ul>
+          <li>
+            Buttons <strong>'−' <span class="num">2</span> and '+'
+            <span class="num">8</span></strong> — cycle vibration pattern:
+            '−' — previous, '+' — next.
+          </li>
+          <li>
+            Arrows <strong>▲ and ▼</strong> <span class="num">4</span> (left
+            controller) — increase (▲) or decrease (▼) vibration strength
+            by 5%.
+          </li>
+          <li>
+            Simultaneous press of <strong>L <span class="num">1</span> + R
+            <span class="num">7</span></strong> or <strong>ZL + ZR</strong> (triggers under L and R) — add the current vibration pattern to favorites (or remove from it).
+          </li>
+        </ul>
+        <p><strong>Random vibration mode:</strong></p>
+        <ul>
+          <li>
+            <strong>Right stick press</strong>
+            <span class="num">10</span> (inwards until it clicks) — enable /
+            disable random mode.
+          </li>
+          <li>
+            Square <strong>Capture</strong> button
+            <span class="num">5</span> (left controller) — add or remove
+            the current vibration pattern from the random list.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal window "Settings": saving all application settings
+       (localStorage keys with joyconaz.* prefix) to a JSON file and loading
+       them back. Hidden by default (hidden attribute), opened by
+       "Settings" button (logic in app.js), closed by cross, backdrop click,
+       or Esc key. Hidden input#settings-file-input opens the system file picker
+       for loading a *.json file. -->
+  <div id="settings-overlay" class="help-overlay" hidden>
+    <div
+      class="help-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-title"
+    >
+      <div class="help-header">
+        <h2 id="settings-title">Settings</h2>
+        <button
+          id="settings-close"
+          type="button"
+          aria-label="Close settings"
+        >
+          ×
+        </button>
+      </div>
+      <div class="help-body">
+        <p>
+          Settings are stored locally on this device. You can save them
+          to a file to transfer to another computer or restore later.
+        </p>
+        <p>
+          <strong>Save settings</strong> — creates a
+          <code>joyconaz-settings.json</code> file. In the desktop version,
+          a save dialog will appear; in the browser, the file will be
+          downloaded automatically.
+        </p>
+        <p>
+          <strong>Load settings</strong> — allows you to choose a previously
+          saved file. Current settings will be replaced by the settings
+          from the file, after which the application will reload.
+        </p>
+        <div class="buttons-row">
+          <button id="settings-save" type="button">Save settings</button>
+          <button id="settings-load" type="button">Load settings</button>
+        </div>
+        <input
+          id="settings-file-input"
+          type="file"
+          accept=".json,application/json"
+          hidden
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal window "ABC of EMDR": information about the program author
+       and groups with translations of EMDR materials. Hidden by default
+       (hidden attribute), opened by "ABC of EMDR" button (logic in app.js),
+       closed by cross, backdrop click, or Esc key. Links open in the system
+       browser: intercepted by main.js in desktop build (setWindowOpenHandler
+       for target="_blank"), native new tab in browser. -->
+  <div id="azbuka-overlay" class="help-overlay" hidden>
+    <div
+      class="help-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="azbuka-title"
+    >
+      <div class="help-header">
+        <h2 id="azbuka-title">About the App</h2>
+        <button
+          id="azbuka-close"
+          type="button"
+          aria-label="Close About the App window'"
+        >
+          ×
+        </button>
+      </div>
+      <div class="help-body">
+        <p>Author:<strong> Alexander Zelenukhin</strong>.
+        </p>
+        <p><strong>Contact:</strong> <a href="mailto:alexander.zelenukhin@gmail.com">alexander.zelenukhin@gmail.com</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal: a quick guide on using the app,
+       moved here from the main screen. Hidden by default
+       (hidden attribute), opened by "Help" button (logic in app.js),
+       closed by cross, backdrop click, or Esc key. -->
+  <div id="help-overlay" class="help-overlay" hidden>
+    <div
+      class="help-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="help-title"
+    >
+      <div class="help-header">
+        <h2 id="help-title">Help</h2>
+        <button id="help-close" type="button" aria-label="Close help">
+          ×
+        </button>
+      </div>
+      <div class="help-body">
+        <p>
+          This is a quick guide on using the application. It explains how to connect Joy-Cons, set up vibration for a session, and save settings — step by step, assuming no prior experience with gaming controllers.
+        </p>
+
+        <p><strong>Connecting Joy-Cons</strong></p>
+        <ul>
+           <li>
+            First, put both Joy-Cons in pairing mode. To do this, find the small round Sync button on the side of each Joy-Con (circled in red on the illustration). Press and hold this Sync button until the lights start flashing. If the lights do not flash, the Joy-Cons are likely discharged and need to be charged.
+          <img
+          src="images/joycon_pairing.png"
+          alt="Location of the Sync button on Joy-Con"
+          width="596"
+          height="167"
+          />
+          </li>
+          <li>
+            Next, connect both Joy-Cons via Bluetooth in your computer's settings — just like connecting wireless headphones.
+          </li>
+          <li>
+            Then, in the application, click 'Connect Joy-Cons'.
+          </li>
+          <li>
+            In the desktop version of the app, previously authorized controllers usually connect automatically on the next launch — no need to press the button again.
+          </li>
+        </ul>
+
+        <p><strong>How vibration works</strong></p>
+        <p>
+          The app plays the selected vibration pattern when the ball on the screen touches the left or right edge of the track. The vibration is sent to the Joy-Con in the corresponding hand: at the left edge — to the left controller, at the right — to the right.
+        </p>
+
+        <p><strong>Vibration patterns and strength</strong></p>
+        <ul>
+          <li>
+            A 'vibration pattern' is a sequence of haptic pulses played when the ball touches an edge.
+          </li>
+          <li>
+            You can adjust the vibration strength separately for each pattern. When selecting a pattern again, the app will automatically restore its previously set strength — you won't have to adjust it from scratch.
+          </li>
+          <li>
+            If a pattern hasn't been adjusted yet, the default strength is <strong>50%</strong>.
+          </li>
+          <li>
+            The last selected vibration pattern and its strength are remembered automatically. They will be restored on the next launch — you can resume your session from where you left off.
+          </li>
+          <li>
+            The app offers 47 vibration patterns: simple single pulses, rhythmic sequences, dynamic patterns with changing strength, and Apple Watch-style haptic clicks. The strength slider scales the overall intensity of the pattern while preserving its rhythm and character.
+          </li>
+        </ul>
+
+        <p><strong>Test vibration before session</strong></p>
+        <p>
+          The 'Test Vibration' button immediately plays the selected pattern on both Joy-Cons — ball movement is not required for this. If the click sound is enabled, it will also play. Use this button to evaluate the strength and feel of the vibration before starting a session with a client.
+        </p>
+
+        <p><strong>Favorite vibration patterns</strong></p>
+        <p>
+          If you use the same patterns more often than others, add them to favorites — this speeds up switching between sessions.
+        </p>
+        <ul>
+          <li>
+            The 'Favorite pattern' checkbox applies to the currently selected pattern. Check the box to add the pattern to favorites, or uncheck to remove it.
+          </li>
+          <li>
+            You can do the same directly from the Joy-Cons: simultaneously press the upper <strong>L + R</strong> buttons (on the top edges of the controllers) or the lower <strong>ZL + ZR</strong> triggers.
+          </li>
+          <li>
+            Favorite patterns are marked with a <strong>★</strong> symbol in the list.
+          </li>
+          <li>
+            If you enable the 'Favorites only' checkbox, only favorite patterns will be available in the list and when switching with the '−' / '+' buttons.
+          </li>
+          <li>
+            If there are no favorite patterns yet, the 'Favorites only' checkbox does nothing — the list remains full.
+          </li>
+        </ul>
+
+        <p><strong>Vibration patterns for random mode</strong></p>
+        <ul>
+          <li>
+            The 'Use randomly' checkbox adds the current pattern to a separate list from which the app selects patterns in random mode (see below).
+          </li>
+          <li>
+            The <strong>Capture</strong> button — a small round/square button on the inner side of the left Joy-Con, near the screen — performs the same action.
+          </li>
+          <li>
+            Patterns for random mode are marked with a <strong>🎲</strong> symbol.
+          </li>
+          <li>
+            This list is not linked to favorites: the same pattern can be in both lists, only one, or neither — these are two independent settings.
+          </li>
+        </ul>
+
+        <p><strong>Random mode</strong></p>
+        <p>
+          Random mode is useful if you want the vibration pattern to change on its own during a session rather than remaining fixed.
+        </p>
+        <ul>
+          <li>
+            Enable the 'Random mode' checkbox to allow the app to choose a vibration pattern on each edge touch.
+          </li>
+          <li>
+            On each edge touch, the app has a 50% chance to keep the current vibration pattern, and a 50% chance to pick a different one from the 'Use randomly' list.
+          </li>
+          <li>
+            If there are multiple patterns in the list, picking the same pattern during a change is excluded: if a change happens, the pattern will definitely be different.
+          </li>
+          <li>
+            Every vibration pattern in random mode is played with the strength saved specifically for it — the vibration strength slider doesn't affect it at this moment.
+          </li>
+          <li>
+            If the random list is empty, the currently selected vibration pattern will play with the strength set by the slider.
+          </li>
+          <li>
+            Favorite patterns and the 'Favorites only' checkbox do not affect random mode in any way — it is a separate setting.
+          </li>
+          <li>
+            Random mode can be toggled by the checkbox in the app, or by pressing the right stick — the small joystick on the top part of the right Joy-Con, which can also be pressed like a button.
+          </li>
+        </ul>
+
+        <p><strong>Keyboard controls</strong></p>
+        <p>
+          The main commands are duplicated on a regular computer keyboard — useful when Joy-Cons are not at hand or it's faster to press a key. Keys work on any layout, including non-English ones.
+        </p>
+        <ul>
+          <li>
+            <strong>Space</strong> — Start / Stop ball movement.
+          </li>
+          <li>
+            Arrows <strong>↑ / →</strong> increase movement speed, arrows
+            <strong>↓ / ←</strong> decrease it — just like the arrows on the left Joy-Con:
+            a single press changes speed by 0.10, holding changes it smoothly.
+          </li>
+          <li>
+            Keys <strong>1 / 2 / 3</strong> (top number row and numpad) — quickly set speed to 0.8 / 1.0 / 1.2.
+          </li>
+          <li>
+            <strong>Enter</strong> — enable or disable random mode.
+          </li>
+          <li>
+            <strong>S</strong> — enable or disable the click sound.
+          </li>
+        </ul>
+
+        <p><strong>Click sound</strong></p>
+        <p>
+          The click sound can be enabled as an additional cue — it indicates which side the touch happened on, even without looking at the screen.
+        </p>
+        <ul>
+          <li>
+            Check the 'Enable' box to play a short click sound along with the vibration.
+          </li>
+          <li>
+            Select the desired click option in the dropdown list.
+          </li>
+          <li>
+            When touching the left edge, the sound is played in the left ear; the right edge — in the right ear. This preserves the correlation between the ball's movement, sound, and vibration.
+          </li>
+          <li>
+            The sound is triggered slightly ahead of time so the click itself sounds exactly when the ball touches the edge.
+          </li>
+          <li>
+            Enabling the sound while the ball is stopped, selecting a different sound, or using the 'Test vibration' button plays a test click in the center — immediately in both speakers.
+          </li>
+          <li>
+            If the ball is already moving, enabling the checkbox won't play the test sound right away — the click will sound on the next edge touch.
+          </li>
+        </ul>
+
+        <p><strong>Saving settings</strong></p>
+        <p>
+          All settings are saved on the device automatically: the selected pattern, the strength for each pattern, favorites, the list for random mode, sound settings, and checked boxes. There is no need to manually press 'save' after every session.
+        </p>
+        <p>
+          The 'Settings' button opens a window with 'Save settings' and 'Load settings' commands — you need them if you want to make a backup or transfer your settings to another computer.
+        </p>
+        <ul>
+          <li>
+            'Save settings' creates a
+            <code>joyconaz-settings.json</code> file. In the desktop version, a save dialog will appear; in the browser, the file will be downloaded.
+          </li>
+          <li>
+            'Load settings' allows you to select a previously saved file. Current settings will be replaced by the ones from the file, and the app will reload.
+          </li>
+        </ul>
+        <p>
+          We recommend keeping this file in a safe place — for instance, if you work across multiple computers or reinstall your OS.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
