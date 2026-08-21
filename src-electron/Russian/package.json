@@ -1,0 +1,58 @@
+{
+  "name": "joyconaz",
+  "productName": "EMDR Joy-Con",
+  "version": "1.0.0",
+  "description": "EMDR-терапия с Joy-Con (WebHID) — настольное приложение Electron для macOS и Windows",
+  "author": "JoyConAZ",
+  "license": "MIT",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "icons": "node make-icons.js",
+    "predist": "node make-icons.js",
+    "predist:mac": "node make-icons.js",
+    "predist:win": "node make-icons.js",
+    "dist": "electron-builder --mac --arm64",
+    "dist:mac": "electron-builder --mac --arm64 --x64",
+    "dist:mac:arm64": "electron-builder --mac --arm64",
+    "dist:mac:x64": "electron-builder --mac --x64",
+    "dist:mac:universal": "electron-builder --mac --universal",
+    "dist:win": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "ru.joyconaz.emdr",
+    "productName": "EMDR Joy-Con",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "app.js",
+      "style.css",
+      "joy-con-webhid.es.js",
+      "images/**/*",
+      "sound/**/*"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.healthcare-fitness",
+      "identity": null
+    }
+  }
+}

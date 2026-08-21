@@ -1,0 +1,542 @@
+:root {
+  color-scheme: dark;
+  --left-color: #00b2dc;
+  --right-color: #ff493e;
+  --panel-bg: #171d24;
+  --panel-border: #2a3138;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: system-ui, sans-serif;
+  background-color: #101418;
+  color: #e8eaed;
+}
+
+/* ── Шапка страницы — зона перетаскивания окна ────────────────────────
+   Системная строка заголовка скрыта (titleBarStyle: 'hidden' /
+   'hiddenInset' в main.js), поэтому окно «таскается» за шапку
+   страницы с заголовком «EMDR-терапия». На macOS в левом верхнем
+   углу поверх шапки остаются родные «светофоры», на Windows/Linux
+   справа вверху — кнопки окна (titleBarOverlay) в цветах приложения;
+   это нативные элементы, и клики по ним страница не перехватывает.
+   app-region — свойство Chromium/Electron: в обычном браузере обе
+   декларации просто игнорируются, веб-версию не затрагивают. */
+header {
+  text-align: center;
+  padding: 1rem 1rem 0;
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}
+
+/* Интерактивные элементы внутри шапки (если появятся в будущем)
+   не должны «съедать» перетаскивание окна — явный no-drag для них.
+   Сейчас в шапке только заголовок, правило — страховка на будущее. */
+header button,
+header a,
+header select,
+header input,
+header label {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+header h1 {
+  margin: 0.25rem 0;
+}
+
+/* Блок с дорожкой и шариком идёт СРАЗУ ПОСЛЕ заголовка,
+   до панели управления. Блок НЕ растягивается по вертикали
+   (flex-grow намеренно убран): дорожка имеет фиксированную
+   высоту (84px) и всегда занимает ровно столько места, сколько
+   нужно ей самой, — при изменении высоты окна размер блока
+   с шариком не меняется. Панель управления прижимается вплотную
+   к блоку снизу — зазор между ними задаёт нижний отступ main. */
+main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 1.5rem 0 1.25rem;
+}
+
+#track {
+  position: relative;
+  width: min(960px, 92vw);
+  height: 84px;
+  border-radius: 42px;
+  border: 2px solid var(--panel-border);
+  background-color: var(--panel-bg);
+}
+
+#track::before,
+#track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 44px;
+  border-radius: 3px;
+}
+
+#track::before {
+  left: 10px;
+  background-color: var(--left-color);
+}
+
+#track::after {
+  right: 10px;
+  background-color: var(--right-color);
+}
+
+#ball {
+  position: absolute;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: radial-gradient(circle at 35% 30%, #ffffff, #7fc1ff 55%, #3a79b8);
+  box-shadow: 0 0 26px rgba(127, 193, 255, 0.55);
+}
+
+#controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: min(680px, 92vw);
+  /* Панель управления прижата к верху — сразу под блоком
+     с дорожкой и шариком (без дополнительного отступа:
+     зазор даёт нижний padding блока main). Автоматический
+     отступ здесь НЕ используется, чтобы панель не уезжала
+     к низу окна. */
+  margin-top: 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background-color: var(--panel-bg);
+}
+
+.buttons-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 1.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background-color: #232b34;
+  color: #e8eaed;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #2b3540;
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 190px 1fr 80px;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.slider-row label {
+  color: #b7c0c9;
+}
+
+.slider-row output {
+  font-variant-numeric: tabular-nums;
+  color: #dfe4e9;
+  text-align: right;
+}
+
+input[type='range'] {
+  width: 100%;
+  accent-color: #7fc1ff;
+}
+
+/* Общий вид флажка с подписью — используется в ряду звука и в ряду
+   избранного («Избранный рисунок», «Только избранное»). */
+.check-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #dfe4e9;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.check-toggle input[type='checkbox'] {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: #7fc1ff;
+  cursor: pointer;
+}
+
+/* ── Ряд флажков избранного (под рисунком вибрации) ──────────────────
+   Отступ слева равен ширине подписи «Рисунок вибрации» в сетке
+   .slider-row (190px) плюс зазор колонки (0.9rem) — флажки стоят
+   ровно под выпадающим списком. */
+.favorites-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.6rem;
+  padding-inline-start: calc(190px + 0.9rem);
+}
+
+/* ── Ряд настроек звука щелчка ────────────────────────────────────────
+   Флекс-строка: подпись фиксированной ширины (190px — как первая
+   колонка .slider-row, чтобы подписи всех рядов выравнивались),
+   затем флажок включения и выпадающий список выбора файла. */
+.sound-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.sound-row > label[for='sound-file'] {
+  color: #b7c0c9;
+  flex: 0 0 190px;
+}
+
+.sound-row select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background-color: #232b34;
+  color: #e8eaed;
+}
+
+#status {
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+  padding-top: 0.35rem;
+}
+
+.status-side {
+  font-size: 0.95rem;
+  opacity: 0.55;
+  transform-origin: center;
+}
+
+.status-side.connected {
+  opacity: 1;
+}
+
+.status-side.left.connected {
+  color: var(--left-color);
+}
+
+.status-side.right.connected {
+  color: var(--right-color);
+}
+
+.help {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 0.75rem;
+  font-size: 0.92rem;
+  color: #b7c0c9;
+}
+
+.help p {
+  margin: 0;
+}
+
+.help ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.help li {
+  margin: 0.15rem 0;
+}
+
+.help strong {
+  color: #dfe4e9;
+}
+
+.help code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+
+/* ── Ряд кнопок «Настройки», «Управление с Joy-Con», «Справка»
+   и «Азбука EMDR» ─────────────────────────────────────────────────────
+   Стоит в конце блока помощи, по центру. Слева — кнопка «Настройки»
+   (#settings-open), открывающая модальное окно сохранения/загрузки
+   настроек; далее — кнопка «Управление с Joy-Con» (#controls-open),
+   открывающая модальное окно со списком управления с контроллеров;
+   затем — кнопка «Справка» (#help-open), открывающая окно справки
+   (#help-overlay); справа — кнопка «Азбука EMDR» (#azbuka-open),
+   открывающая окно с информацией об авторе программы и его группах
+   с переводами материалов по EMDR (#azbuka-overlay). */
+.help-button-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+}
+
+/* ── Модальные окна (Справка, Управление с Joy-Con, Настройки,
+   Азбука EMDR) ─────────────────────────────────────────────────────────
+   Длинная справка, список управления с контроллеров, окно настроек
+   и окно «Азбука EMDR» вынесены с главного экрана в модальные окна:
+   полупрозрачное затемнение на весь экран, диалог по центру
+   с прокруткой длинного содержимого. Открытие — кнопки «Справка»,
+   «Управление с Joy-Con», «Настройки» и «Азбука EMDR», закрытие —
+   крестик, клик по затемнению или клавиша Esc (app.js).
+   Отдельное правило для [hidden] обязательно: display: flex
+   перекрыл бы стандартное скрытие атрибута hidden, и окно
+   показывалось бы всегда. */
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgba(0, 0, 0, 0.62);
+}
+
+.help-overlay[hidden] {
+  display: none;
+}
+
+.help-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, 100%);
+  max-height: min(82vh, 760px);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background-color: var(--panel-bg);
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.55);
+}
+
+.help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.help-header h2 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+/* Крестик закрытия — общий для окон «Справка» (#help-close),
+   «Управление с Joy-Con» (#controls-close), «Настройки»
+   (#settings-close) и «Азбука EMDR» (#azbuka-close). */
+#help-close,
+#controls-close,
+#settings-close,
+#azbuka-close {
+  padding: 0.1rem 0.65rem;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+.help-body {
+  overflow-y: auto;
+  padding: 0.9rem 1.25rem 1.15rem;
+  font-size: 0.92rem;
+  color: #b7c0c9;
+}
+
+.help-body p {
+  margin: 0;
+}
+
+.help-body p + p,
+.help-body ul + p {
+  margin-top: 0.6rem;
+}
+
+.help-body ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.help-body li {
+  margin: 0.15rem 0;
+}
+
+.help-body strong {
+  color: #dfe4e9;
+}
+
+.help-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+
+/* ── Ссылки внутри модальных окон ─────────────────────────────────────
+   Ссылки на группы «Азбука EMDR» в окне об авторе: цвет акцента
+   приложения и явное подчёркивание — стандартный синий браузера
+   на тёмном фоне выглядел бы чужеродно и терялся. */
+.help-body a {
+  color: #7fc1ff;
+}
+
+.help-body a:hover {
+  color: #a8d7ff;
+}
+
+/* ── Изображения внутри модальных окон ────────────────────────────────
+   Схема кнопок Joy-Con (joycon_front_names.png) вшита в HTML
+   атрибутами width="690" height="407": они сохраняют соотношение
+   сторон и предотвращают скачок раскладки при загрузке, но жёсткая
+   ширина 690px ВЫЛЕЗАЛА за пределы диалога (рабочая ширина .help-body
+   ~640px и меньше на узких экранах) и порождала горизонтальную
+   прокрутку. max-width: 100% вместе с height: auto перекрывают
+   атрибуты: реальные размеры задаёт CSS — картинка вписывается
+   в диалог на любом экране, прокрутка исчезает. */
+.help-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.4rem auto;
+  border-radius: 8px;
+}
+
+/* Отступ между абзацем и идущей сразу за ним картинкой (схема кнопок
+   в окне «Управление с Joy-Con» идёт сразу после заголовочного <p>). */
+.help-body p + img {
+  margin-top: 0.6rem;
+}
+
+/* ── Номерные маркеры кнопок (окно «Управление с Joy-Con») ────────────
+   Номера кнопок на схеме joycon_front_names.png. Прежние юникодовые
+   обведённые цифры ①–⑪ — один мелкий глиф примерно на кегль шрифта:
+   при размере текста .help-body (0.92rem ≈ 15px) цифра внутри кружка
+   выходила ~6–7px и была нечитаемой, а вид глифа зависит от шрифта
+   и ОС (на Windows часто кривой). Вместо них — обычная цифра
+   в CSS-кружке: читается на любом размере, кружок идеально круглый
+   на всех платформах, зависимости от наличия глифов в шрифте нет. */
+.num {
+  display: inline-block;
+  min-width: 1.5em;
+  height: 1.5em;
+  line-height: 1.5;
+  padding: 0 0.15em;
+  border-radius: 50%;
+  background-color: #7fc1ff;
+  color: #101418;
+  font-size: 0.72em;
+  font-weight: 700;
+  text-align: center;
+  vertical-align: 0.18em;
+  user-select: none;
+}
+
+/* ── Кнопки действий внутри модального окна (окно «Настройки») ────────
+   Ряд кнопок «Сохранить настройки» / «Загрузить настройки»
+   (.buttons-row внутри .help-body) отделяется от текста описания
+   отступом сверху. Без этого правила кнопки прилипали к последнему
+   абзацу: .help-body обнуляет поля абзацев (p { margin: 0 }) и
+   добавляет отступ только МЕЖДУ соседними абзацами (p + p), а сам
+   flex-контейнер кнопок никаких полей не имеет — из-за нулевого
+   нижнего поля последнего <p> и нулевого верхнего поля ряда кнопок
+   они визуально перекрывали описание. Дополнительный нижний отступ
+   страхует на узких экранах, где кнопки переносятся на две строки. */
+.help-body .buttons-row {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Подпись о подключении Joy-Cons прижата к панели управления:
+   без автоматического отступа сверху подпись идёт сразу под
+   #controls (зазор даёт её собственный верхний padding), а всё
+   СВОБОДНОЕ вертикальное пространство body остаётся снизу —
+   весь интерфейс собран у верху страницы, включая эту надпись.
+   НИЖНИЙ отступ 10px — «воздух» между текстом подписи и нижним
+   краем окна: с подгонкой высоты окна под контент окно
+   заканчивается сразу за подписью, и без отступа текст
+   прилипал бы к рамке. Отступ входит в рамку footer
+   (getBoundingClientRect у main.js его учитывает), поэтому
+   подгонка высоты окна корректно включает его в размер. */
+footer {
+  padding: 1rem 1rem 10px;
+  font-size: 0.8rem;
+  color: #9aa4ae;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .slider-row {
+    grid-template-columns: 1fr 70px;
+    grid-template-areas:
+      'label label'
+      'slider output';
+  }
+
+  .slider-row label {
+    grid-area: label;
+  }
+
+  .slider-row input {
+    grid-area: slider;
+  }
+
+  .slider-row output {
+    grid-area: output;
+  }
+
+  /* На узких экранах подписи рядов уходят на отдельную строку —
+     выравнивать флажки избранного под списком больше не нужно. */
+  .favorites-row {
+    padding-inline-start: 0;
+  }
+
+  .sound-row {
+    flex-wrap: wrap;
+  }
+
+  .sound-row > label[for='sound-file'] {
+    flex-basis: 100%;
+  }
+
+  /* Модальным окнам на узких экранах хватает меньшего отступа
+     от краёв. */
+  .help-overlay {
+    padding: 0.75rem;
+  }
+}
