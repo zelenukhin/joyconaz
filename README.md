@@ -1,4 +1,4 @@
-#EMDR therapy with Joy-Cons
+# EMDR therapy with Joy-Cons
 
 A simple script allowing the use of Joy-Cons as EMDR tappers
 
