@@ -1,3 +1,5 @@
+#EMDR therapy with Joy-Cons
+
 A simple script allowing the use of Joy-Cons as EMDR tappers
 
 Online Demo version (Russian): https://zelenukhin.github.io/joyconaz/
