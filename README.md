@@ -8,6 +8,6 @@ https://github.com/zelenukhin/joyconaz/releases
 
 Online Demo version (Russian): https://zelenukhin.github.io/joyconaz/
 
-***Use a Chrome-compatible browser - Google Chrome, Microsoft Edge, Yandex Browser, etc.***
+*Use a Chrome-compatible browser - Google Chrome, Microsoft Edge, Yandex Browser, etc.*
 
 
